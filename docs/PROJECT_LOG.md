@@ -1,10 +1,10 @@
 <!--
-  PrintArtZ.com — PROJECT BACKBONE FILE
+  PrintArtZ.co.in — PROJECT BACKBONE FILE
   This file is the single source of truth for planning, design, decisions, and progress.
   It is updated after each working session/prompt run. Push manually as needed.
 -->
 
-# PrintArtZ.com — Project Log & Backbone
+# PrintArtZ.co.in — Project Log & Backbone
 
 > **Purpose:** This document is the backbone of the whole project. It combines the
 > living working log (status, decisions, next steps) with the full implementation plan.
@@ -25,12 +25,12 @@
 
 | Field | Value |
 |---|---|
-| Product | PrintArtZ.com — India-first printable school-project image generator for parents |
+| Product | PrintArtZ.co.in — India-first printable school-project image generator for parents |
 | Repo | `Yuushann/printartz` (personal GitHub account) |
 | Working branch | `develop` |
 | Local path | `C:\Amit_Data\Pet Project\printartz` |
-| Current phase | **Pre-Phase 1** — provisioning accounts/services & credentials |
-| Last updated | 2026-07-30 |
+| Current phase | **Phase 1 — Foundation** (provisioning ~complete; starting scaffolding) |
+| Last updated | 2026-09-12 |
 
 ---
 
@@ -42,22 +42,22 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 | Service | Status | Notes / credentials |
 |---|---|---|
 | GitHub (personal `Yuushann`) | ✅ | Repo cloned; SSH auth working via alias `github.com-personal` |
-| OpenAI Platform API key | ⬜ | Need `OPENAI_API_KEY`; set spend limits; text + image models |
-| PostgreSQL (Neon/Supabase or local Docker) | ⬜ | `DATABASE_URL` — provider TBD |
-| Redis (Upstash or local Docker) | ⬜ | `REDIS_URL` |
-| Google OAuth | ⬜ | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET` |
+| OpenAI Platform API key | ✅ | Verified; `AI_TEXT_MODEL=gpt-4o-mini`, `AI_IMAGE_MODEL=gpt-image-1` (dall-e-3 NOT available on this account). Spend cap $10/mo. |
+| PostgreSQL (**Supabase**) | ✅ | Verified (PG 17.6, ap-south-1). Pooler host is `aws-1` not `aws-0` after resume. |
+| Redis (Upstash) | ✅ | Verified via ioredis. `rediss://` (TLS), Mumbai, eviction off. |
+| Google OAuth | ✅ | Client + `AUTH_SECRET` set; localhost redirect for dev. Consent screen in Testing mode. |
 
 ### Tier 2 — generation → payment → download flow
 | Service | Status | Notes / credentials |
 |---|---|---|
-| Object storage (Cloudflare R2 / Supabase Storage) | ⬜ | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_PREVIEWS`, `S3_BUCKET_FINALS`, `S3_REGION` |
-| Razorpay | ⬜ | Test keys + webhook secret; KYC for live |
-| Resend (email) | ⬜ | `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` |
+| Object storage (**Supabase Storage**) | ✅ | S3 creds + buckets (`printartz-previews`, `printartz-finals`) in `.env.local`. S3-compatible adapter so we can swap to Cloudflare R2 later if egress grows. |
+| Razorpay | 🔷 | Test keys verified (test order created). Webhook secret + live KYC deferred. |
+| Resend (email) | ⬜ | Deferred — blocked on domain going fully active for DNS domain-verify. `EMAIL_FROM`/`SUPPORT_EMAIL` set to `@printartz.co.in`. |
 
 ### Tier 3 — production launch
 | Service | Status | Notes |
 |---|---|---|
-| Domain PrintArtZ.com + DNS | ⬜ | Cloudflare/Namecheap/GoDaddy; WHOIS privacy; 2FA |
+| Domain PrintArtZ.co.in + DNS | 🔷 | Registered on GoDaddy (3-yr term). Domain KYC/validation in progress. DNS not configured yet. (`.com` was taken by an investor.) |
 | Vercel (frontend hosting) | ⬜ | Connect repo, env vars, custom domain |
 | Worker host (Railway/Render/Fly.io) | ⬜ | Long jobs can't run serverless |
 | Sentry (monitoring) | ⬜ | `SENTRY_DSN` |
@@ -82,11 +82,12 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ### Resolved
 - **Repo hosting:** personal GitHub account `Yuushann`, private repo `printartz`, working on `develop`.
+- **Cost strategy:** self-funded pet project — minimize spend, prefer free tiers; only unavoidable recurring costs are domain (~₹1k/yr) + OpenAI usage (hard-capped).
+- **DB + Storage provider:** **Supabase** for both (free tier, single account). Storage stays behind an S3-compatible adapter so it can move to Cloudflare R2 later if egress grows.
 
 ### Open decisions (from plan §18 — resolve before/at relevant phase)
 - [ ] Final AI provider for text + image generation (default: OpenAI).
-- [ ] DB + storage provider combo (Supabase all-in-one vs Neon + R2 vs local Docker first). **← next up**
-- [ ] Final hosting provider combination.
+- [ ] Final hosting provider combination (leaning Vercel free + local/free worker).
 - [ ] Email login: magic link vs OTP.
 - [ ] First release downloads: PDF only vs PDF + JPEG.
 - [ ] Chart paper sizes: Indian market-standard vs configurable custom from day one.
@@ -96,7 +97,22 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ## 5. Session log (most recent first)
 
-### 2026-07-30
+### 2026-09-12 (session 3 — Claude Code)
+- Resumed after long gap: **un-paused Supabase**; fixed stale pooler host (`aws-0`→`aws-1`) in `DATABASE_URL`/`DIRECT_URL`; verified DB (PG 17.6).
+- Provisioned + **verified live**: **OpenAI** (fixed image model to `gpt-image-1`; dall-e-3 not on account; $10/mo spend cap), **Upstash Redis** (`rediss://` TLS, Mumbai), **Razorpay** test keys (test order created).
+- Configured **Google OAuth** (localhost redirect, Testing mode) + generated `AUTH_SECRET`.
+- **Domain:** `printartz.com` was taken by an investor → registered **`printartz.co.in`** on GoDaddy (3-yr). Rebranded domain refs in this doc + `.env.local`/`.env.example` emails to `.co.in`.
+- Hardened `.gitignore` (all `.env*` except `.env.example`).
+- **Deferred:** Resend (needs domain active). **Next:** commit progress, then start **Phase 1 scaffolding** (build the first page).
+
+### 2026-07-30 (session 2)
+- Reviewed DB/storage options through a **cost lens** (free tiers).
+- **Decision:** Supabase for both DB + Storage (all free, single login); keep storage behind S3-compatible adapter for future R2 swap.
+- Confirmed overall near-zero-cost stack (Upstash, Vercel, Resend, Sentry free tiers; only domain + capped OpenAI cost real money).
+- Committed & pushed backbone file to `develop` (commit `840b748`).
+- **Next:** create Supabase project, capture `DATABASE_URL` + storage keys.
+
+### 2026-07-30 (session 1)
 - Fetched the full implementation plan from prior session into this workspace.
 - Reviewed complete services/credentials checklist; organized into Tier 1/2/3.
 - Set up **two-GitHub-account** workflow (company global + personal folder-scoped) with dedicated SSH key + host alias.
@@ -109,8 +125,8 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ## 6. Next steps (rolling)
 
-1. Decide **DB + storage** provider combo.
-2. Provision **Tier 1** credentials (OpenAI, DB, Redis, Google OAuth).
+1. **Create Supabase project** → capture `DATABASE_URL` (pooled + direct), project URL, anon/service keys, and Storage S3 credentials.
+2. Provision remaining **Tier 1** credentials (OpenAI, Upstash Redis, Google OAuth).
 3. Begin **Phase 1: Foundation** — scaffold the monorepo (Next.js, TS, Tailwind, shadcn/ui, Prisma, base schema, local Docker, base CI).
 
 ---
@@ -122,7 +138,7 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ## 1. Product summary
 
-PrintArtZ.com is an India-first web application for parents who need accurate, printable school-project images and cutouts for young children. The user can paste school instructions, select or confirm required options, preview a watermarked result, and download a high-quality printable PDF or JPEG after payment when applicable.
+PrintArtZ.co.in is an India-first web application for parents who need accurate, printable school-project images and cutouts for young children. The user can paste school instructions, select or confirm required options, preview a watermarked result, and download a high-quality printable PDF or JPEG after payment when applicable.
 
 The most important product promise is print accuracy: paper size, cutout dimensions, margins, color, and layout must be deterministic and reliable. AI should help understand the school instruction and generate visual assets, but final page size and object placement must be controlled by application code.
 
@@ -470,7 +486,7 @@ No separate IDE is required for frontend and backend if using the recommended Ty
 Before production launch, the founder should create or provide access to:
 
 1. Domain
-   - PrintArtZ.com domain registration.
+   - PrintArtZ.co.in domain registration.
    - DNS management access.
 
 2. GitHub
@@ -659,7 +675,7 @@ Provider free tiers change frequently. Before launch, verify current limits, reg
 
 Steps:
 
-1. Search and register `PrintArtZ.com` through Cloudflare Registrar, Namecheap, GoDaddy, or another registrar.
+1. Search and register `PrintArtZ.co.in` through Cloudflare Registrar, Namecheap, GoDaddy, or another registrar.
 2. Enable WHOIS privacy if available.
 3. Use Cloudflare DNS if possible.
 4. Add DNS records later for:
@@ -841,17 +857,17 @@ Recommended starting option:
 Steps:
 
 1. Create Resend account.
-2. Add and verify sending domain after `PrintArtZ.com` DNS is available.
+2. Add and verify sending domain after `PrintArtZ.co.in` DNS is available.
 3. Add required DNS records.
 4. Create API key.
-5. Configure sender addresses such as `support@printartz.com` and `no-reply@printartz.com`.
+5. Configure sender addresses such as `support@printartz.co.in` and `no-reply@printartz.co.in`.
 
 Expected variables:
 
 ```text
 EMAIL_PROVIDER_API_KEY=...
-EMAIL_FROM=no-reply@printartz.com
-SUPPORT_EMAIL=support@printartz.com
+EMAIL_FROM=no-reply@printartz.co.in
+SUPPORT_EMAIL=support@printartz.co.in
 ```
 
 ### 19.12 Authentication setup
