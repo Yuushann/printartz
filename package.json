@@ -8,6 +8,7 @@
     "build": "pnpm --filter @printartz/web build",
     "start": "pnpm --filter @printartz/web start",
     "lint": "pnpm --filter @printartz/web lint",
+    "typecheck": "pnpm -r --if-present typecheck",
     "db:generate": "pnpm --filter @printartz/db generate",
     "db:migrate": "pnpm --filter @printartz/db migrate",
     "db:push": "pnpm --filter @printartz/db push",

@@ -12,7 +12,8 @@
     "generate": "prisma generate",
     "push": "dotenv -e ../../.env.local -- prisma db push",
     "migrate": "dotenv -e ../../.env.local -- prisma migrate dev",
-    "studio": "dotenv -e ../../.env.local -- prisma studio"
+    "studio": "dotenv -e ../../.env.local -- prisma studio",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6"
@@ -20,6 +21,7 @@
   "devDependencies": {
     "prisma": "^6",
     "dotenv-cli": "^8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/node": "^22"
   }
 }
