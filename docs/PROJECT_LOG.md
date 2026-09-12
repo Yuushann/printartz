@@ -29,7 +29,7 @@
 | Repo | `Yuushann/printartz` (personal GitHub account) |
 | Working branch | `develop` |
 | Local path | `C:\Amit_Data\Pet Project\printartz` |
-| Current phase | **Phase 1 — Foundation** (provisioning ~complete; starting scaffolding) |
+| Current phase | **Phase 1 — Foundation complete** (monorepo, DB, UI, CI); next: Phase 2 auth |
 | Last updated | 2026-09-12 |
 
 ---
@@ -103,7 +103,13 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 - Configured **Google OAuth** (localhost redirect, Testing mode) + generated `AUTH_SECRET`.
 - **Domain:** `printartz.com` was taken by an investor → registered **`printartz.co.in`** on GoDaddy (3-yr). Rebranded domain refs in this doc + `.env.local`/`.env.example` emails to `.co.in`.
 - Hardened `.gitignore` (all `.env*` except `.env.example`).
-- **Deferred:** Resend (needs domain active). **Next:** commit progress, then start **Phase 1 scaffolding** (build the first page).
+- **Started + completed Phase 1 scaffolding:**
+  - pnpm monorepo; `apps/web` = Next.js 15.5 (App Router, TS, Tailwind v4); `packages/shared` (constants, paper presets, zod schema); homepage live & tested.
+  - `packages/db` = Prisma 6 base schema **pushed to Supabase (12 tables verified)**.
+  - shadcn/ui (dependency-free) + `/create` project-submission page with zod validation.
+  - GitHub Actions CI (install, prisma generate/validate, typecheck, lint, build); all steps pass locally.
+  - Commits `3e3e84a`..`a634ef8` on `develop` (not yet pushed).
+- **Deferred:** Resend (needs domain active), local Docker (using cloud services). **Next:** push to GitHub; Phase 2 (auth wiring with the OAuth creds).
 
 ### 2026-07-30 (session 2)
 - Reviewed DB/storage options through a **cost lens** (free tiers).
