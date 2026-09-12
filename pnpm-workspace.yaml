@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - packages/*
+
+# unrs-resolver (eslint transitive dep) ships prebuilt binaries; no build needed.
+allowBuilds:
+  unrs-resolver: false
