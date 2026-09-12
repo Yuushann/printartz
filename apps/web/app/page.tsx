@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   SITE,
   PROJECT_CATEGORIES,
@@ -5,35 +6,40 @@ import {
   STYLES,
   FREE_GENERATION_QUOTA,
 } from "@printartz/shared";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       {/* Hero */}
       <section className="text-center">
-        <span className="inline-block rounded-full border border-black/10 dark:border-white/15 px-3 py-1 text-xs font-medium text-black/60 dark:text-white/60">
+        <span className="text-muted-foreground inline-block rounded-full border px-3 py-1 text-xs font-medium">
           India-first · {FREE_GENERATION_QUOTA} free generations
         </span>
         <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
           {SITE.name}
-          <span className="text-black/40 dark:text-white/40">.co.in</span>
+          <span className="text-muted-foreground">.co.in</span>
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-black/70 dark:text-white/70">
+        <p className="text-muted-foreground mx-auto mt-5 max-w-2xl text-lg">
           {SITE.tagline}
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
-          <a
-            href="#"
-            className="rounded-lg bg-foreground px-5 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-          >
+          <Link href="/create" className={cn(buttonVariants({ size: "lg" }))}>
             Start a project
-          </a>
-          <a
+          </Link>
+          <Link
             href="#categories"
-            className="rounded-lg border border-black/15 dark:border-white/20 px-5 py-3 text-sm font-semibold transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
           >
             See what you can make
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -42,15 +48,12 @@ export default function Home() {
         <h2 className="text-center text-2xl font-semibold">What you can create</h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {PROJECT_CATEGORIES.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-xl border border-black/10 dark:border-white/10 p-5"
-            >
-              <h3 className="font-semibold">{c.label}</h3>
-              <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-                {c.description}
-              </p>
-            </div>
+            <Card key={c.id}>
+              <CardHeader>
+                <CardTitle>{c.label}</CardTitle>
+                <CardDescription>{c.description}</CardDescription>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       </section>
@@ -59,12 +62,12 @@ export default function Home() {
       <section className="mt-16 grid gap-8 sm:grid-cols-2">
         <div>
           <h2 className="text-lg font-semibold">Print-accurate paper sizes</h2>
-          <ul className="mt-3 space-y-2 text-sm text-black/70 dark:text-white/70">
+          <ul className="text-muted-foreground mt-3 space-y-2 text-sm">
             {Object.values(PAPER_SIZES).map((p) => (
-              <li key={p.id} className="flex justify-between border-b border-black/5 dark:border-white/10 pb-2">
-                <span>{p.label}</span>
-                <span className="tabular-nums text-black/50 dark:text-white/50">
-                  {p.widthMm} × {p.heightMm} mm
+              <li key={p.id} className="flex justify-between border-b pb-2">
+                <span className="text-foreground">{p.label}</span>
+                <span className="tabular-nums">
+                  {p.widthMm} &times; {p.heightMm} mm
                 </span>
               </li>
             ))}
@@ -76,16 +79,21 @@ export default function Home() {
             {STYLES.map((s) => (
               <span
                 key={s.id}
-                className="rounded-full bg-black/5 dark:bg-white/10 px-3 py-1 text-sm"
+                className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm"
               >
                 {s.label}
               </span>
             ))}
           </div>
+          <div className="mt-6">
+            <Button variant="secondary" disabled>
+              Sign in (coming soon)
+            </Button>
+          </div>
         </div>
       </section>
 
-      <footer className="mt-24 border-t border-black/10 dark:border-white/10 pt-6 text-center text-sm text-black/50 dark:text-white/50">
+      <footer className="text-muted-foreground mt-24 border-t pt-6 text-center text-sm">
         {SITE.name} · {SITE.domain} · {SITE.supportEmail}
       </footer>
     </main>
