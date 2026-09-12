@@ -11,6 +11,12 @@ node_modules/
 dist/
 build/
 
+# Prisma generated client (regenerated via `pnpm db:generate` / CI)
+packages/db/src/generated/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # OS
 .DS_Store
 Thumbs.db

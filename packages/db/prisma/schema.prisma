@@ -8,7 +8,11 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  // New engine-free generator (queryCompiler + driver adapter). No native
+  // query engine — required for Windows/arm64 where the Rust engine has no build.
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
 }
 
 // ------------------------------------------------------------------ enums

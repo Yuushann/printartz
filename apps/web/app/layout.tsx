@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SITE } from "@printartz/shared";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +13,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }
