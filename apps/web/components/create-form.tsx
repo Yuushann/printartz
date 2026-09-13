@@ -26,6 +26,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [image, setImage] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(initialRemaining);
+  const [refine, setRefine] = useState("");
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -43,40 +44,59 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
     });
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setImage(null);
-    setSummary(null);
-    if (instruction.trim().length < 3) {
-      setError("Please describe the project (at least a few words).");
-      return;
-    }
+  async function runGenerate(instructionText: string, referenceFiles: File[]) {
     setLoading(true);
+    setError(null);
     try {
       const fd = new FormData();
-      fd.set("instruction", instruction);
+      fd.set("instruction", instructionText);
       fd.set("category", category);
       fd.set("paperSize", paperSize);
       if (style) fd.set("style", style);
       if (paperColor) fd.set("paperColor", paperColor);
-      refs.forEach((r) => fd.append("images", r.file));
+      referenceFiles.slice(0, MAX_FILES).forEach((f) => fd.append("images", f));
 
       const res = await fetch("/api/generate", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.error ?? "Generation failed.");
         if (typeof data.remaining === "number") setRemaining(data.remaining);
-        return;
+        return false;
       }
       setImage(data.image);
       setSummary(data.summary ?? null);
       setRemaining(data.remaining);
+      return true;
     } catch {
       setError("Network error — please try again.");
+      return false;
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setImage(null);
+    setSummary(null);
+    setRefine("");
+    if (instruction.trim().length < 3) {
+      setError("Please describe the project (at least a few words).");
+      return;
+    }
+    await runGenerate(instruction, refs.map((r) => r.file));
+  }
+
+  async function onRefine() {
+    if (!image || refine.trim().length < 2) return;
+    // Feed the previous result back as the reference, plus the requested change.
+    const prevBlob = await (await fetch(image)).blob();
+    const prevFile = new File([prevBlob], "previous.png", { type: "image/png" });
+    const combined =
+      `${instruction}\n\nThis is a refinement of the attached previous result. ` +
+      `Keep it largely the same but apply this change: ${refine.trim()}`;
+    const ok = await runGenerate(combined, [prevFile]);
+    if (ok) setRefine("");
   }
 
   return (
@@ -223,6 +243,28 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
               <a href={image} download="printartz.png" className="text-sm font-medium text-fuchsia-600 hover:underline">
                 Download prototype image ↓
               </a>
+
+              {/* Refine loop */}
+              <div className="rounded-lg border bg-black/[0.02] p-3 dark:bg-white/[0.03]">
+                <Label htmlFor="refine" className="text-sm">Not quite right? Ask for a change</Label>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    id="refine"
+                    value={refine}
+                    onChange={(e) => setRefine(e.target.value)}
+                    disabled={loading || remaining <= 0}
+                    placeholder="e.g. make the apples bigger, add 2 more, use green leaves"
+                    className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  />
+                  <Button type="button" variant="outline" onClick={onRefine} disabled={loading || remaining <= 0 || refine.trim().length < 2}>
+                    Regenerate
+                  </Button>
+                </div>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  Regenerates using this image as the reference. Uses one generation.
+                </p>
+              </div>
+
               <p className="text-muted-foreground text-xs">
                 Prototype preview — final print-accurate PDF export, watermarking and paid
                 download come in later phases.
