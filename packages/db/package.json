@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "generate": "prisma generate",
     "push": "dotenv -e ../../.env.local -- prisma db push",
     "migrate": "dotenv -e ../../.env.local -- prisma migrate dev",

@@ -10,7 +10,9 @@ import {
 import { projectRequestSchema, FREE_GENERATION_QUOTA } from "@printartz/shared";
 
 export const runtime = "nodejs";
-export const maxDuration = 90;
+// Vercel Hobby caps function duration ~60s; Pro allows more. Image generation
+// (esp. with reference images) can approach this — revisit / move to a worker if it times out.
+export const maxDuration = 60;
 
 const MAX_FILES = 2;
 const MAX_FILE_BYTES = 6 * 1024 * 1024; // 6 MB each
