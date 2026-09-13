@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cutout-cartoon",
+    "category": "Cutout sheet",
+    "style": "Cartoon",
+    "prompt": "Six friendly cartoon apples arranged as a cutout sheet, bold outlines for cutting, white background.",
+    "src": "/examples/cutout-cartoon.png"
+  },
+  {
+    "id": "cutout-realistic",
+    "category": "Cutout sheet",
+    "style": "Realistic",
+    "prompt": "A set of realistic autumn leaves as a cutout sheet, clear outlines for cutting, white background.",
+    "src": "/examples/cutout-realistic.png"
+  },
+  {
+    "id": "coloring-book",
+    "category": "Coloring sheet",
+    "style": "Coloring book",
+    "prompt": "A coloring sheet of a smiling elephant, bold black-and-white outlines, no shading, white background.",
+    "src": "/examples/coloring-book.png"
+  },
+  {
+    "id": "coloring-sketch",
+    "category": "Coloring sheet",
+    "style": "Sketch",
+    "prompt": "A sketch-style rocket and planets coloring page, pencil-line look, white background.",
+    "src": "/examples/coloring-sketch.png"
+  },
+  {
+    "id": "chart-realistic",
+    "category": "Project chart",
+    "style": "Realistic",
+    "prompt": "A tidy 'Solar System' school project chart with the planets and blank label lines, white background.",
+    "src": "/examples/chart-realistic.png"
+  },
+  {
+    "id": "labels-cartoon",
+    "category": "Labels & headings",
+    "style": "Cartoon",
+    "prompt": "A colorful cartoon 'My Science Project' heading banner with a few blank name-tag labels, white background.",
+    "src": "/examples/labels-cartoon.png"
+  }
+]
