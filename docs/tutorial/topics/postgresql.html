@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PostgreSQL — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / PostgreSQL</div>
+      <h1><span class="g">PostgreSQL</span> — interview study guide</h1>
+      <p class="lead">
+        PostgreSQL is the relational database behind PrintArtZ — hosted on Supabase, accessed
+        through Prisma, and holding tables like <code>User</code>, <code>ProjectRequest</code>, and
+        <code>GenerationJob</code>. This guide walks from raw SQL basics to indexes, transactions,
+        and the trade-offs of Postgres vs other databases, in interview Q&amp;A form with real SQL
+        and full, spoken-aloud answers. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">SQL Basics</button>
+          <button class="tab" data-tab="schema">Schema &amp; Constraints</button>
+          <button class="tab" data-tab="joins">Joins &amp; Queries</button>
+          <button class="tab" data-tab="perf">Indexes &amp; Performance</button>
+          <button class="tab" data-tab="tx">Transactions &amp; Integrity</button>
+          <button class="tab" data-tab="why">Advanced &amp; Why Postgres</button>
+        </div>
+
+        <!-- ================= SQL BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a relational database, and what is PostgreSQL?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>relational database</strong> stores data in <strong>tables</strong> (also called relations): rows are records and columns are typed attributes. The "relational" part comes from the fact that tables can reference each other — a row in one table can point at a row in another via a key — which lets you model real relationships (a user <em>has many</em> project requests) without duplicating data. You query and manipulate this data with <strong>SQL</strong> (Structured Query Language).</p>
+              <p><strong>PostgreSQL</strong> (usually just "Postgres") is a free, open-source, highly standards-compliant relational database that has been developed for over 30 years. It's known for correctness, a rich type system (including <code>JSONB</code>, arrays, and full-text search), strong transactional guarantees (ACID), and extensibility. PrintArtZ runs Postgres via <strong>Supabase</strong> — a hosted platform that wraps a real Postgres instance with auth, storage, and an API layer.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the four basic SQL operations (CRUD)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Nearly everything you do to data maps to four verbs, together known as <strong>CRUD</strong> — Create, Read, Update, Delete. In SQL these are <code>INSERT</code>, <code>SELECT</code>, <code>UPDATE</code>, and <code>DELETE</code>.</p>
+              <pre><code>-- Create
+INSERT INTO "User" (email, name) VALUES ('amit@example.com', 'Amit');
+
+-- Read
+SELECT id, email FROM "User" WHERE name = 'Amit';
+
+-- Update
+UPDATE "User" SET name = 'Amit K.' WHERE email = 'amit@example.com';
+
+-- Delete
+DELETE FROM "User" WHERE email = 'amit@example.com';</code></pre>
+              <p>An important interview point: SQL is a <strong>declarative</strong> language. You describe <em>what</em> data you want, not <em>how</em> to fetch it; the database's query planner figures out the most efficient execution strategy. (Note: in Postgres a table created with a capitalized name like <code>User</code> must be quoted, because unquoted identifiers are folded to lowercase — Prisma quotes them for you.)</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How does the <code>SELECT</code> statement work — WHERE, ORDER BY, LIMIT?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>SELECT</code> reads rows from one or more tables. You choose columns after <code>SELECT</code>, the source after <code>FROM</code>, filter rows with <code>WHERE</code>, sort with <code>ORDER BY</code>, and cap the number of rows with <code>LIMIT</code>.</p>
+              <pre><code>SELECT id, status, created_at
+FROM "GenerationJob"
+WHERE status = 'PENDING'
+ORDER BY created_at DESC
+LIMIT 20;</code></pre>
+              <p>A subtle but classic interview detail is the <strong>logical order of evaluation</strong>, which differs from the written order: <code>FROM</code> → <code>WHERE</code> → <code>GROUP BY</code> → <code>HAVING</code> → <code>SELECT</code> → <code>ORDER BY</code> → <code>LIMIT</code>. This explains why you can't use a column alias defined in <code>SELECT</code> inside a <code>WHERE</code> clause — <code>WHERE</code> runs before <code>SELECT</code> — but you <em>can</em> use it in <code>ORDER BY</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a primary key?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>primary key</strong> is the column (or set of columns) that uniquely identifies each row in a table. It enforces two rules at once: the values must be <strong>unique</strong> and can never be <strong>NULL</strong>. Every well-designed table should have one, because it gives each row a stable, unambiguous identity that other tables and your application code can reference.</p>
+              <pre><code>CREATE TABLE "User" (
+  id    TEXT PRIMARY KEY,     -- e.g. a cuid/uuid
+  email TEXT NOT NULL UNIQUE
+);</code></pre>
+              <p>Keys come in two flavours worth naming in an interview: a <strong>natural key</strong> is a real-world unique value (like an email), while a <strong>surrogate key</strong> is a synthetic id with no business meaning (an auto-incrementing integer, a UUID, or a cuid). Most modern schemas — including PrintArtZ via Prisma — prefer surrogate keys because business values can change, but an internal id should never have to.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is NULL, and why is it tricky?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>NULL</code> represents the <strong>absence of a value</strong> — "unknown" or "not applicable" — and it is <em>not</em> the same as <code>0</code> or an empty string. The trap is that NULL uses <strong>three-valued logic</strong>: any comparison with NULL yields <code>UNKNOWN</code>, not true or false. So <code>WHERE price = NULL</code> matches nothing; you must write <code>WHERE price IS NULL</code>.</p>
+              <pre><code>-- ❌ never matches, even for NULL rows
+SELECT * FROM job WHERE finished_at = NULL;
+
+-- ✅ correct
+SELECT * FROM job WHERE finished_at IS NULL;
+
+-- COALESCE substitutes a fallback for NULL
+SELECT COALESCE(name, 'Anonymous') FROM "User";</code></pre>
+              <p>NULL also silently affects aggregates (<code>COUNT(column)</code> skips NULLs while <code>COUNT(*)</code> counts every row) and can produce surprising results in <code>NOT IN</code> subqueries. Being fluent about NULL behaviour is a common way interviewers separate people who have really used SQL from those who have only read about it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the difference between <code>WHERE</code> and <code>HAVING</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both filter rows, but at different stages. <code>WHERE</code> filters <strong>individual rows before grouping</strong>, so it cannot reference aggregate functions. <code>HAVING</code> filters <strong>groups after <code>GROUP BY</code></strong> has aggregated them, so it can use aggregates like <code>COUNT()</code> or <code>SUM()</code>.</p>
+              <pre><code>SELECT user_id, COUNT(*) AS jobs
+FROM "GenerationJob"
+WHERE status = 'DONE'          -- pre-filter rows
+GROUP BY user_id
+HAVING COUNT(*) &gt; 5;           -- filter aggregated groups</code></pre>
+              <p>A good rule of thumb: use <code>WHERE</code> to throw away rows you never want to count, and <code>HAVING</code> only when your condition depends on the aggregated result. Filtering early with <code>WHERE</code> is also usually cheaper, because fewer rows reach the grouping step.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the difference between <code>DELETE</code>, <code>TRUNCATE</code>, and <code>DROP</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>All three remove data, but at very different levels and costs.</p>
+              <ul>
+                <li><strong><code>DELETE</code></strong> removes rows one by one, honouring a <code>WHERE</code> clause, firing triggers, and being fully transactional (you can <code>ROLLBACK</code> it). It's the everyday, surgical option.</li>
+                <li><strong><code>TRUNCATE</code></strong> empties an <em>entire</em> table almost instantly by discarding the underlying storage rather than scanning rows. It's much faster for wiping a whole table but can't be filtered.</li>
+                <li><strong><code>DROP TABLE</code></strong> deletes the table itself — data <em>and</em> its schema/definition — not just the rows.</li>
+              </ul>
+              <pre><code>DELETE FROM "GenerationJob" WHERE status = 'FAILED'; -- some rows
+TRUNCATE "GenerationJob";                            -- all rows, fast
+DROP TABLE "GenerationJob";                           -- table gone</code></pre>
+              <p>In interviews, the headline is: <code>DELETE</code> is row-level DML you can filter and roll back; <code>TRUNCATE</code> and <code>DROP</code> are heavier, structural operations.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SCHEMA & CONSTRAINTS ================= -->
+        <section class="panel" data-panel="schema">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the common PostgreSQL data types?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Choosing the right type is part of correct schema design — it enforces valid data and affects storage and performance. The everyday Postgres types are:</p>
+              <ul>
+                <li><strong>Numbers:</strong> <code>INTEGER</code>/<code>BIGINT</code> for whole numbers, <code>NUMERIC(p,s)</code> for exact decimals (money!), <code>REAL</code>/<code>DOUBLE PRECISION</code> for floating point.</li>
+                <li><strong>Text:</strong> <code>TEXT</code> (unbounded) and <code>VARCHAR(n)</code>. In Postgres these perform identically — <code>TEXT</code> is idiomatic unless you truly need a length cap.</li>
+                <li><strong>Boolean:</strong> <code>BOOLEAN</code> (<code>true</code>/<code>false</code>).</li>
+                <li><strong>Dates/times:</strong> <code>TIMESTAMPTZ</code> (timestamp with time zone — almost always the right choice), <code>DATE</code>, <code>TIME</code>.</li>
+                <li><strong>Identity:</strong> <code>UUID</code>, or <code>SERIAL</code>/<code>GENERATED … AS IDENTITY</code> for auto-increment.</li>
+                <li><strong>Semi-structured:</strong> <code>JSONB</code>, arrays, and <code>ENUM</code> types (PrintArtZ uses an enum for <code>GenerationJob.status</code>).</li>
+              </ul>
+              <p>A classic warning: never store money in floating-point types, because <code>0.1 + 0.2</code> isn't exactly <code>0.3</code> in binary floats — use <code>NUMERIC</code> for exact arithmetic.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a foreign key?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>foreign key</strong> is a column that references the primary key of another table, creating an enforced link between them. It guarantees <strong>referential integrity</strong>: the database will reject a row that points to a non-existent parent, so you can never end up with a <code>GenerationJob</code> whose <code>userId</code> doesn't correspond to a real <code>User</code>.</p>
+              <pre><code>CREATE TABLE "GenerationJob" (
+  id      TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  status  TEXT NOT NULL
+);</code></pre>
+              <p>The <code>ON DELETE</code> clause defines what happens to children when the parent is removed: <code>CASCADE</code> deletes the children too, <code>RESTRICT</code> blocks the delete, and <code>SET NULL</code> nulls the reference. This is how PrintArtZ models "a user has many project requests and jobs" while keeping the data consistent.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What do the <code>NOT NULL</code> and <code>UNIQUE</code> constraints do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Constraints are rules the database enforces on every write, so bad data can't get in regardless of which application or script is writing. Two of the most common:</p>
+              <ul>
+                <li><strong><code>NOT NULL</code></strong> requires the column to always have a value — e.g. a <code>User</code> must have an <code>email</code>.</li>
+                <li><strong><code>UNIQUE</code></strong> forbids duplicate values in a column (or combination of columns) — no two users can share the same email.</li>
+              </ul>
+              <pre><code>CREATE TABLE "User" (
+  id    TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  name  TEXT               -- nullable: optional
+);</code></pre>
+              <p>The key mental model: a primary key is effectively <code>NOT NULL</code> + <code>UNIQUE</code> combined. Other constraints worth knowing are <code>CHECK</code> (custom rule, e.g. <code>price &gt;= 0</code>) and <code>DEFAULT</code> (a fallback value when none is supplied). Enforcing rules in the database is safer than only checking them in application code, because the database is the last line of defence.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is normalization, and why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Normalization</strong> is the process of organizing tables to reduce redundancy and avoid update anomalies — the practical goal being "store each fact in exactly one place." Instead of copying a user's email into every one of their jobs, you store the user once and reference them by id. The main forms build on each other:</p>
+              <ul>
+                <li><strong>1NF:</strong> atomic column values (no comma-separated lists in a single cell), and a key.</li>
+                <li><strong>2NF:</strong> every non-key column depends on the <em>whole</em> primary key (matters for composite keys).</li>
+                <li><strong>3NF:</strong> non-key columns depend only on the key, not on each other (no transitive dependencies).</li>
+              </ul>
+              <p>Why it matters: if the same fact is duplicated in many rows, an update can leave copies inconsistent (an "update anomaly"). Normalization prevents that. The counterpoint interviewers like to hear is that read-heavy or analytical systems sometimes <strong>denormalize</strong> on purpose — duplicating data to avoid expensive joins — trading storage and write-complexity for read speed.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a one-to-many vs many-to-many relationship, and how do you model each?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>one-to-many</strong> relationship (one user has many jobs) is modeled by putting a foreign key on the "many" side pointing back at the "one" side — the <code>GenerationJob.user_id</code> column. That's the most common relationship in an app schema.</p>
+              <p>A <strong>many-to-many</strong> relationship (a post has many tags, a tag belongs to many posts) can't be captured with a single foreign key. You introduce a <strong>join table</strong> (also called a junction or bridge table) that holds one row per pairing:</p>
+              <pre><code>CREATE TABLE post_tag (
+  post_id TEXT REFERENCES post(id) ON DELETE CASCADE,
+  tag_id  TEXT REFERENCES tag(id)  ON DELETE CASCADE,
+  PRIMARY KEY (post_id, tag_id)   -- composite key prevents duplicates
+);</code></pre>
+              <p>The composite primary key on both columns is what stops the same pairing being inserted twice. A <strong>one-to-one</strong> relationship is just a one-to-many with a <code>UNIQUE</code> constraint on the foreign key.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a schema migration, and how does Prisma fit in?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>migration</strong> is a versioned, ordered change to the database structure — creating a table, adding a column, adding an index. Rather than clicking around a GUI, you capture each change as a script committed to source control, so every environment (local, staging, production) can be brought to the same schema deterministically.</p>
+              <p>PrintArtZ uses <strong>Prisma</strong>, an ORM where you declare the schema in a <code>schema.prisma</code> file and run <code>prisma migrate</code> to generate and apply SQL. Prisma also generates a fully typed client, so queries are type-checked in TypeScript.</p>
+              <pre><code>// schema.prisma
+model User {
+  id    String  @id @default(cuid())
+  email String  @unique
+  jobs  GenerationJob[]
+}</code></pre>
+              <p>The value proposition: the ORM maps rows to typed objects and prevents SQL injection via parameterized queries, while migrations give you a repeatable, reviewable history of how the schema evolved.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= JOINS & QUERIES ================= -->
+        <section class="panel" data-panel="joins">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a JOIN, and why do you need one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Because a normalized schema splits related data across tables, a <strong>JOIN</strong> is how you recombine them in a single query. You tell the database how rows in one table line up with rows in another — usually by matching a foreign key to a primary key.</p>
+              <pre><code>SELECT u.email, j.status, j.created_at
+FROM "User" u
+JOIN "GenerationJob" j ON j.user_id = u.id
+WHERE j.status = 'DONE';</code></pre>
+              <p>Here each output row pairs a user with one of their completed jobs. Without joins you'd have to run one query for users and another for jobs and stitch them together in application code — which is exactly the inefficient pattern the "N+1 problem" describes. The <code>ON</code> clause is the join condition; getting it wrong (or omitting it) produces a Cartesian product where every row is paired with every other.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>INNER JOIN vs LEFT JOIN vs RIGHT JOIN vs FULL JOIN?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The join <em>type</em> decides what happens to rows that have no match on the other side.</p>
+              <div class="vs">
+                <div><h4>INNER JOIN</h4><p class="muted">Returns only rows that have a match in <em>both</em> tables. Users with zero jobs are excluded. This is the default and most common.</p></div>
+                <div><h4>LEFT JOIN</h4><p class="muted">Returns <em>all</em> rows from the left table, plus matches from the right — filling <code>NULL</code> where there's no match. Great for "all users and their jobs, even users with none."</p></div>
+              </div>
+              <pre><code>-- Every user, with a job count that may be 0
+SELECT u.email, COUNT(j.id) AS job_count
+FROM "User" u
+LEFT JOIN "GenerationJob" j ON j.user_id = u.id
+GROUP BY u.email;</code></pre>
+              <p><strong>RIGHT JOIN</strong> is the mirror image (all rows from the right table); it's rarely used because you can just swap the table order and use LEFT. <strong>FULL OUTER JOIN</strong> keeps unmatched rows from <em>both</em> sides. A neat interview trick: a LEFT JOIN with <code>WHERE right.id IS NULL</code> finds rows that have <em>no</em> match — e.g. users who have never created a job.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is <code>GROUP BY</code>, and what are aggregate functions?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Aggregate functions</strong> collapse many rows into a single summary value: <code>COUNT()</code>, <code>SUM()</code>, <code>AVG()</code>, <code>MIN()</code>, <code>MAX()</code>. <code>GROUP BY</code> lets you compute those summaries <em>per group</em> instead of over the whole table.</p>
+              <pre><code>SELECT status, COUNT(*) AS n, MAX(created_at) AS latest
+FROM "GenerationJob"
+GROUP BY status;</code></pre>
+              <p>This returns one row per distinct <code>status</code>, with the count and most-recent timestamp for each. The golden rule that trips people up: every column in the <code>SELECT</code> must either appear in the <code>GROUP BY</code> or be wrapped in an aggregate — otherwise the database wouldn't know which value from the group to show. As covered earlier, use <code>HAVING</code> (not <code>WHERE</code>) to filter on the aggregated results.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a subquery, and what kinds are there?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>subquery</strong> is a query nested inside another. It lets you use the result of one query as input to another, and shows up in three main positions:</p>
+              <pre><code>-- 1) In WHERE (a set to test against)
+SELECT * FROM "User"
+WHERE id IN (SELECT user_id FROM "GenerationJob" WHERE status = 'FAILED');
+
+-- 2) In FROM (a derived table)
+SELECT status, n FROM
+  (SELECT status, COUNT(*) AS n FROM "GenerationJob" GROUP BY status) t
+WHERE n &gt; 10;
+
+-- 3) In SELECT (a scalar value per row)
+SELECT u.email,
+       (SELECT COUNT(*) FROM "GenerationJob" j WHERE j.user_id = u.id) AS jobs
+FROM "User" u;</code></pre>
+              <p>A <strong>correlated</strong> subquery (like #3) references the outer query and runs once per outer row, which can be slow — often a JOIN or a window function is a better rewrite. The <code>EXISTS</code> form is usually preferred over <code>IN</code> for "does a related row exist?" because it can short-circuit on the first match and behaves correctly around NULLs.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What's the difference between <code>UNION</code> and <code>UNION ALL</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both stack the results of two queries on top of each other (they must have compatible columns). The difference is duplicate handling: <code>UNION</code> removes duplicate rows, which forces the database to sort or hash the combined result to detect them. <code>UNION ALL</code> keeps every row, including duplicates, and is therefore <strong>significantly faster</strong>.</p>
+              <pre><code>SELECT email FROM active_users
+UNION ALL          -- cheaper; use when you know there are no dupes
+SELECT email FROM trial_users;</code></pre>
+              <p>The practical takeaway for interviews: reach for <code>UNION ALL</code> by default and only pay for <code>UNION</code>'s de-duplication when you genuinely need distinct rows. Note this is different from a JOIN — <code>UNION</code> combines rows <em>vertically</em> (more rows), while a JOIN combines them <em>horizontally</em> (more columns).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is the difference between <code>COUNT(*)</code>, <code>COUNT(column)</code>, and <code>COUNT(DISTINCT column)</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>All three count, but subtly differently — a favourite interview detail because it exposes NULL awareness.</p>
+              <ul>
+                <li><code>COUNT(*)</code> counts <strong>every row</strong> in the group, NULLs included.</li>
+                <li><code>COUNT(column)</code> counts only rows where that column is <strong>not NULL</strong>.</li>
+                <li><code>COUNT(DISTINCT column)</code> counts the number of <strong>distinct non-NULL values</strong>.</li>
+              </ul>
+              <pre><code>SELECT
+  COUNT(*)                 AS total_jobs,
+  COUNT(finished_at)       AS finished_jobs,   -- skips NULL finished_at
+  COUNT(DISTINCT user_id)  AS users_with_jobs
+FROM "GenerationJob";</code></pre>
+              <p>So on a jobs table, <code>COUNT(*)</code> tells you total jobs, <code>COUNT(finished_at)</code> tells you how many have completed, and <code>COUNT(DISTINCT user_id)</code> tells you how many unique users are represented — three different business questions from one scan.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= INDEXES & PERFORMANCE ================= -->
+        <section class="panel" data-panel="perf">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is an index, and why does it speed up queries?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>index</strong> is a separate, sorted data structure the database maintains alongside a table to find rows quickly. The analogy interviewers love is the index at the back of a book: instead of reading every page (a "full table scan") to find a topic, you jump straight to the right page. Without an index, finding <code>WHERE email = 'x'</code> means scanning every row; with one, the lookup is near-instant.</p>
+              <pre><code>CREATE INDEX idx_job_user_id ON "GenerationJob"(user_id);
+CREATE UNIQUE INDEX idx_user_email ON "User"(email);</code></pre>
+              <p>Indexes are automatically created for primary keys and <code>UNIQUE</code> constraints. You typically add them to foreign-key columns and to columns you frequently filter, join, or sort on — for PrintArtZ, indexing <code>GenerationJob.user_id</code> makes "fetch this user's jobs" fast. The cost, covered in the next question, is that indexes aren't free.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a B-tree index, and when does an index actually help vs hurt?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The default index type in Postgres is a <strong>B-tree</strong> (balanced tree): a sorted, multi-level structure that supports fast equality <em>and</em> range lookups (<code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>BETWEEN</code>, <code>ORDER BY</code>) in logarithmic time. Postgres also offers specialized types — <strong>GIN</strong> for <code>JSONB</code>/arrays/full-text, <strong>GiST</strong> for geometric/range data, and <strong>Hash</strong> for equality-only.</p>
+              <p>Indexes <strong>help</strong> reads that select a small fraction of a large table. They <strong>hurt</strong> in several cases:</p>
+              <ul>
+                <li>Every <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> must also update the index, so write-heavy tables pay a tax.</li>
+                <li>Indexes consume storage and memory.</li>
+                <li>On <strong>low-cardinality</strong> columns (few distinct values, like a boolean) or when a query returns most of the table, the planner will often ignore the index and do a sequential scan anyway, because reading the table directly is cheaper than bouncing between index and table.</li>
+              </ul>
+              <p>So indexing is a deliberate trade-off — index the columns your real queries filter and join on, not every column reflexively.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a composite index, and why does column order matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>composite (multi-column) index</strong> covers several columns in a defined order. It behaves like a phone book sorted by last name, then first name: you can look up efficiently by "last name" or by "last name + first name," but <em>not</em> by "first name" alone.</p>
+              <pre><code>CREATE INDEX idx_job_user_status
+  ON "GenerationJob"(user_id, status, created_at);</code></pre>
+              <p>This is the <strong>leftmost prefix</strong> rule: the index helps queries filtering on <code>user_id</code>, on <code>user_id + status</code>, or all three — but a query filtering only on <code>status</code> can't use it effectively. So the ideal order puts the most selective, most frequently-filtered columns first. A well-ordered composite index can also serve an <code>ORDER BY</code> for free and even become a <strong>covering index</strong> (answering a query entirely from the index without touching the table).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What do <code>EXPLAIN</code> and <code>EXPLAIN ANALYZE</code> tell you?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>EXPLAIN</code> shows the <strong>query plan</strong> — the strategy the planner intends to use — without running the query: which indexes (if any) it will use, the join methods, and its <em>estimated</em> row counts and costs. <code>EXPLAIN ANALYZE</code> actually <strong>executes</strong> the query and reports the <em>real</em> timing and row counts, so you can compare estimates against reality.</p>
+              <pre><code>EXPLAIN ANALYZE
+SELECT * FROM "GenerationJob" WHERE user_id = 'abc';</code></pre>
+              <p>The single most important thing to look for is <strong>Seq Scan vs Index Scan</strong>. A "Seq Scan" on a big table in a query you expected to be indexed usually means a missing or unusable index. A large gap between estimated and actual rows suggests stale statistics (fixed with <code>ANALYZE</code>). This is the primary tool for diagnosing slow queries — in an interview, saying "I'd run <code>EXPLAIN ANALYZE</code> first" signals you debug with evidence rather than guessing.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is the N+1 query problem, and how do you fix it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <strong>N+1 problem</strong> is a classic ORM performance bug. You run <strong>1</strong> query to fetch a list (say N users), then loop over the results and fire <strong>1 more query per item</strong> to fetch related data (each user's jobs) — ending up with <strong>N+1</strong> round-trips to the database. For 100 users that's 101 queries where a single join would do.</p>
+              <pre><code>// ❌ N+1: one query, then one per user
+const users = await prisma.user.findMany();
+for (const u of users) {
+  u.jobs = await prisma.generationJob.findMany({ where: { userId: u.id } });
+}
+
+// ✅ Prisma eager-loads related rows in one efficient batch
+const users = await prisma.user.findMany({ include: { jobs: true } });</code></pre>
+              <p>The fix is <strong>eager loading</strong> — fetch the related data up front with a JOIN or a single batched query (Prisma's <code>include</code>/<code>select</code>, or a raw SQL join). It's insidious because it looks fine on 5 rows in development and quietly falls over in production. Recognizing and naming N+1 is a very common interview signal for someone who has done real backend work.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Beyond indexes, what are common ways to make a slow query faster?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li><strong>Select only needed columns</strong> — avoid <code>SELECT *</code> so less data is read and transferred, and covering indexes can kick in.</li>
+                <li><strong>Filter early and specifically</strong> so the planner can use indexes and touch fewer rows.</li>
+                <li><strong>Avoid functions on indexed columns</strong> in <code>WHERE</code> (e.g. <code>WHERE lower(email) = …</code> can't use a plain index on <code>email</code>) — or add an expression index for it.</li>
+                <li><strong>Paginate with keyset pagination</strong> (<code>WHERE id &gt; last_id LIMIT 20</code>) instead of large <code>OFFSET</code> values, which still scan and discard all skipped rows.</li>
+                <li><strong>Batch writes</strong> and fix N+1 patterns to cut round-trips.</li>
+                <li><strong>Keep statistics fresh</strong> (autovacuum/<code>ANALYZE</code>) so the planner makes good choices; add a <strong>materialized view</strong> for expensive, repeated aggregations.</li>
+              </ul>
+              <p>The disciplined workflow is always the same: measure with <code>EXPLAIN ANALYZE</code>, find the real bottleneck, change one thing, and measure again.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TRANSACTIONS & INTEGRITY ================= -->
+        <section class="panel" data-panel="tx">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a transaction, and what does ACID mean?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>transaction</strong> is a group of one or more statements that execute as a single, all-or-nothing unit of work. The canonical example is a bank transfer: debit one account and credit another must <em>both</em> succeed or <em>both</em> fail — you can never leave money vanished in between. Postgres guarantees this through the <strong>ACID</strong> properties:</p>
+              <ul>
+                <li><strong>Atomicity:</strong> all statements commit together or none do; a failure rolls the whole thing back.</li>
+                <li><strong>Consistency:</strong> a transaction moves the database from one valid state to another, respecting all constraints.</li>
+                <li><strong>Isolation:</strong> concurrent transactions don't step on each other; each behaves as if it ran alone (to a degree set by the isolation level).</li>
+                <li><strong>Durability:</strong> once committed, the data survives crashes and power loss (written to durable storage via the write-ahead log).</li>
+              </ul>
+              <p>ACID guarantees are a major reason to choose a relational database like Postgres for data you can't afford to corrupt — such as user accounts, quotas, and billing in PrintArtZ.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you use <code>BEGIN</code>, <code>COMMIT</code>, and <code>ROLLBACK</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>BEGIN</code> starts a transaction, <code>COMMIT</code> makes all its changes permanent and visible to others, and <code>ROLLBACK</code> discards every change since <code>BEGIN</code> as if it never happened.</p>
+              <pre><code>BEGIN;
+  UPDATE account SET balance = balance - 100 WHERE id = 1;
+  UPDATE account SET balance = balance + 100 WHERE id = 2;
+COMMIT;   -- both updates land together; ROLLBACK to undo both</code></pre>
+              <p>Outside an explicit transaction, each statement in Postgres runs in its own implicit "autocommit" transaction. In application code you usually don't write this raw SQL — you wrap logic in the ORM's transaction API. For example, PrintArtZ can decrement a user's remaining quota and insert a <code>GenerationJob</code> inside one Prisma <code>$transaction([...])</code> call, so a user never gets charged a credit without a job actually being created (or vice-versa).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are transaction isolation levels?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Isolation levels control how much concurrent transactions can "see" of each other's in-progress work — trading strictness for concurrency. The SQL standard defines four, and each prevents more anomalies as you go up:</p>
+              <ul>
+                <li><strong>Read Uncommitted:</strong> can see others' uncommitted changes ("dirty reads"). Postgres treats this the same as Read Committed — it never allows dirty reads.</li>
+                <li><strong>Read Committed</strong> (Postgres default): only sees committed data, but the same query run twice in one transaction can return different results ("non-repeatable read").</li>
+                <li><strong>Repeatable Read:</strong> a snapshot fixed at transaction start, so re-reads are stable.</li>
+                <li><strong>Serializable:</strong> the strictest — transactions behave as if they ran one after another, preventing all anomalies at the cost of possible serialization failures you must retry.</li>
+              </ul>
+              <pre><code>BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+  -- ... critical work ...
+COMMIT;</code></pre>
+              <p>The anomalies to name are dirty reads, non-repeatable reads, and phantom reads. The pragmatic answer is that Read Committed is the sensible default for most web apps, and you raise the level only for specific operations that need stronger guarantees.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is a deadlock, and how do you avoid one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>deadlock</strong> is a standoff where two transactions each hold a lock the other needs, so neither can proceed. Transaction A locks row 1 and wants row 2; transaction B has locked row 2 and wants row 1 — they wait forever. Postgres automatically detects this cycle and kills one transaction (raising a deadlock error) so the other can continue.</p>
+              <pre><code>-- Tx A: locks row 1, then waits for row 2
+-- Tx B: locks row 2, then waits for row 1  -> deadlock</code></pre>
+              <p>Prevention strategies: <strong>always acquire locks in a consistent order</strong> (e.g. always update rows by ascending id) so cycles can't form; keep transactions <strong>short</strong> to shrink the window; touch fewer rows; and <strong>be ready to retry</strong> a transaction that fails with a deadlock or serialization error, since a retry usually succeeds. Related concept: <code>SELECT … FOR UPDATE</code> takes a row lock deliberately to prevent lost updates when you read-then-write.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does Postgres handle concurrent reads and writes (MVCC)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Postgres uses <strong>MVCC — Multi-Version Concurrency Control</strong>. Instead of readers and writers blocking each other, an <code>UPDATE</code> doesn't overwrite a row in place; it writes a <em>new version</em> and keeps the old one around. Each transaction sees a consistent snapshot of the data as of a point in time, so <strong>readers never block writers and writers never block readers</strong> — a big concurrency win.</p>
+              <p>The trade-off is that outdated row versions ("dead tuples") accumulate and must be cleaned up. This is the job of <strong>VACUUM</strong> (and autovacuum, which runs automatically): it reclaims space from dead tuples and updates the planner's statistics. If autovacuum can't keep up on a very write-heavy table, you can see "bloat" and degraded performance — which is why understanding MVCC and vacuuming matters for anyone operating Postgres at scale.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ADVANCED & WHY POSTGRES ================= -->
+        <section class="panel" data-panel="why">
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is JSONB, and when should you use it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>JSONB</code> lets you store JSON documents inside a column with a decomposed binary format that supports indexing and fast key lookups (unlike plain <code>JSON</code>, which is stored as text). This gives Postgres a "NoSQL inside SQL" capability — flexible, schemaless fields living alongside your strongly-typed relational columns.</p>
+              <pre><code>-- store flexible metadata; query into it with -&gt; and -&gt;&gt;
+SELECT id FROM "GenerationJob"
+WHERE params -&gt;&gt; 'model' = 'gpt-image-1';
+
+-- a GIN index makes JSONB containment queries fast
+CREATE INDEX idx_job_params ON "GenerationJob" USING GIN (params);</code></pre>
+              <p>It's ideal for data whose shape varies or evolves — API responses, an AI request's parameters, feature flags, or event payloads. The caution: don't dump <em>everything</em> into JSONB. Data you filter, join, or constrain on should be real typed columns so you keep integrity and query performance; reserve JSONB for the genuinely fluid parts.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are CTEs and window functions?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>CTE (Common Table Expression)</strong>, written with <code>WITH</code>, is a named temporary result set that makes complex queries readable by breaking them into logical steps — and it can even be recursive (great for tree/hierarchy traversal).</p>
+              <pre><code>WITH recent AS (
+  SELECT * FROM "GenerationJob" WHERE created_at &gt; now() - interval '7 days'
+)
+SELECT user_id, COUNT(*) FROM recent GROUP BY user_id;</code></pre>
+              <p><strong>Window functions</strong> perform calculations across a set of rows <em>related to the current row</em> without collapsing them like <code>GROUP BY</code> does — so you keep every row <em>and</em> get an aggregate/ranking alongside it.</p>
+              <pre><code>-- rank each user's jobs by recency, keeping all rows
+SELECT id, user_id,
+       ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
+FROM "GenerationJob";</code></pre>
+              <p>Functions like <code>ROW_NUMBER()</code>, <code>RANK()</code>, <code>LAG()</code>, and running <code>SUM() OVER (…)</code> are the go-to tools for "top N per group," running totals, and period-over-period comparisons — the kind of analytics that are awkward or impossible with plain aggregates.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is connection pooling, and why does PrintArtZ use PgBouncer?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Opening a Postgres connection is relatively expensive, and each connection consumes memory on the server — Postgres uses a process per connection, so it doesn't scale to thousands of them. A <strong>connection pool</strong> keeps a set of ready connections and hands them out to application requests, dramatically reducing overhead and protecting the database from being overwhelmed.</p>
+              <p>This matters intensely for <strong>serverless</strong> deployments. PrintArtZ's Next.js app runs functions that can spin up many concurrent instances, each wanting a database connection — without pooling you'd exhaust Postgres' connection limit almost immediately. Supabase provides <strong>PgBouncer</strong>, a lightweight external pooler, in front of Postgres.</p>
+              <pre><code># Prisma: pooled URL for the app, direct URL for migrations
+DATABASE_URL="postgres://...@...pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgres://...@...supabase.com:5432/postgres"</code></pre>
+              <p>A key interview nuance: in <em>transaction</em> pooling mode, features that rely on session state (like prepared statements) need care — which is exactly why the config disables prepared statements (<code>pgbouncer=true</code>) and uses a separate <code>DIRECT_URL</code> for migrations.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>PostgreSQL vs MySQL — how do you choose?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both are mature, popular, free relational databases, and for many CRUD apps either is fine. The distinctions worth knowing:</p>
+              <div class="vs">
+                <div><h4>PostgreSQL</h4><p class="muted">Strong standards compliance; richer types (<code>JSONB</code>, arrays, ranges), full-text search, and extensions (PostGIS); advanced features like CTEs and window functions matured earlier; excellent for complex queries and data integrity.</p></div>
+                <div><h4>MySQL</h4><p class="muted">Historically prized for simplicity and raw read speed on simple queries; huge in the LAMP/web ecosystem; very widely hosted. Some advanced SQL features arrived later than in Postgres.</p></div>
+              </div>
+              <p>The modern consensus is that Postgres has become the default choice for new projects that value correctness, a rich feature set, and complex querying — which is why PrintArtZ uses it. MySQL remains a solid, well-understood option, especially where a team already knows it or an ecosystem (like WordPress) expects it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>PostgreSQL vs Oracle?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>PostgreSQL</h4><p class="muted">Free and open-source, no licensing cost, huge community, runs anywhere and on every cloud. Feature-rich and increasingly enterprise-grade; you self-manage or use a hosted provider like Supabase.</p></div>
+                <div><h4>Oracle</h4><p class="muted">Commercial, expensive per-core licensing, but with deep enterprise features (advanced partitioning, RAC clustering, tuning tools) and vendor support that large regulated organizations rely on.</p></div>
+              </div>
+              <p>The essence: Oracle is a heavyweight commercial database chosen by big enterprises for its ecosystem, support contracts, and specialized high-end features, while Postgres delivers most of that capability with no license fee and no lock-in. For a startup or side project like PrintArtZ, the cost and flexibility make Postgres the obvious pick; Oracle tends to appear where legacy systems or corporate procurement demand it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>SQL vs NoSQL (e.g. MongoDB) — when would you choose which?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>This is one of the most common system-design questions. <strong>SQL/relational</strong> databases use a fixed schema, tables with relationships, strong ACID transactions, and a powerful join-based query language. <strong>NoSQL</strong> is an umbrella term; the document type (MongoDB) stores flexible, schemaless JSON-like documents and scales horizontally with ease.</p>
+              <div class="vs">
+                <div><h4>Choose SQL when…</h4><p class="muted">Data is structured and relational, integrity/transactions matter (accounts, payments, quotas), you need complex ad-hoc queries and joins, and the schema is reasonably stable. This describes most business apps — including PrintArtZ.</p></div>
+                <div><h4>Choose NoSQL when…</h4><p class="muted">The schema is highly variable or evolving fast, you need massive horizontal write scale, data is naturally document- or key-value-shaped, and you can relax strict consistency for availability and speed.</p></div>
+              </div>
+              <p>The mature, senior-sounding answer avoids dogma: pick based on the data's shape and the access patterns, not hype — and note that Postgres blurs the line with <code>JSONB</code>, giving you schemaless flexibility <em>within</em> a transactional relational engine, which is often the best of both worlds for an app like PrintArtZ.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you prevent SQL injection?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>SQL injection</strong> happens when user input is concatenated directly into a query string, letting an attacker inject their own SQL. The fix is to <strong>never build queries by string concatenation</strong> and instead use <strong>parameterized queries</strong> (prepared statements), where user values are sent separately from the query text and can never be interpreted as SQL.</p>
+              <pre><code>// ❌ vulnerable — user input becomes part of the SQL
+db.query(`SELECT * FROM "User" WHERE email = '${input}'`);
+
+// ✅ parameterized — input is data, not code
+db.query('SELECT * FROM "User" WHERE email = $1', [input]);</code></pre>
+              <p>The reassuring part for PrintArtZ is that using an ORM like <strong>Prisma</strong> parameterizes queries by default, so ordinary use is safe. The risk resurfaces only if you drop down to raw SQL (<code>$queryRawUnsafe</code> with interpolation) — so the rule is: use the query builder, and if you must write raw SQL, always pass values as parameters. Defence-in-depth adds least-privilege database roles so even a breach is contained.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · PostgreSQL study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

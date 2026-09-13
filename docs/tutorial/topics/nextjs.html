@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Next.js — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / Next.js</div>
+      <h1><span class="g">Next.js</span> — interview study guide</h1>
+      <p class="lead">
+        Next.js is the React framework PrintArtZ is built on — it gives us file-based
+        routing, server rendering, and a backend (Route Handlers, Server Actions) in one
+        codebase. This guide goes from absolute basics to advanced, in interview Q&amp;A form
+        with real code and the kind of full, spoken-aloud answer an interviewer expects.
+        Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Basics</button>
+          <button class="tab" data-tab="rendering">Rendering</button>
+          <button class="tab" data-tab="routing">Routing &amp; Layouts</button>
+          <button class="tab" data-tab="data">Data &amp; Backend</button>
+          <button class="tab" data-tab="optimization">Optimization</button>
+          <button class="tab" data-tab="why">Why &amp; Deployment</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is Next.js and why use it over plain React?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Next.js is a <strong>React framework</strong> maintained by Vercel. React by itself is only the view layer — it renders components from state and nothing more. Next.js wraps React and supplies all the pieces a real app needs out of the box: <strong>file-based routing</strong>, <strong>server-side rendering and static generation</strong>, a <strong>backend</strong> (Route Handlers and Server Actions), image/font optimization, and a production build pipeline.</p>
+              <p>The problem it solves: with a plain React setup (say Create React App or a bare Vite SPA) you ship a nearly-empty HTML shell and let the browser render everything, then bolt on a router, a data-fetching strategy, and a separate backend yourself. That means slower first paint, weaker SEO, and a lot of glue code. Next.js gives you sensible defaults for all of that.</p>
+              <p>For PrintArtZ specifically, Next.js lets us keep the whole product — the marketing pages, the authenticated <code>/create</code> flow, the OpenAI image-generation API, and Auth.js — in a <strong>single codebase and single deployment</strong>, with pages that render on the server for speed and SEO.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is file-based routing?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Instead of declaring routes in code (as you would with React Router), Next.js derives your URLs from the <strong>folder structure</strong> inside the <code>app/</code> directory. A folder becomes a URL segment, and a special <code>page.tsx</code> file inside it makes that segment publicly routable.</p>
+              <pre><code>app/
+  page.tsx            -&gt; /
+  create/page.tsx     -&gt; /create
+  gallery/page.tsx    -&gt; /gallery
+  art/[id]/page.tsx   -&gt; /art/:id</code></pre>
+              <p>The big advantage is that routing is <strong>convention over configuration</strong>: you never maintain a route table, and the URL map is obvious from the file tree. Not every file is a route — only reserved filenames (<code>page</code>, <code>layout</code>, <code>route</code>, <code>loading</code>, <code>error</code>) are special; everything else is just a normal module you can colocate next to the route that uses it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the reserved special files in the App Router?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Inside <code>app/</code>, certain filenames have built-in meaning and let you describe a route's behavior declaratively rather than wiring it up yourself:</p>
+              <ul>
+                <li><code>page.tsx</code> — the UI for a route; makes the segment reachable.</li>
+                <li><code>layout.tsx</code> — shared UI that wraps a segment and all its children; preserves state across navigation.</li>
+                <li><code>loading.tsx</code> — an instant loading state (a Suspense fallback) shown while the segment streams in.</li>
+                <li><code>error.tsx</code> — an error boundary for the segment; catches render errors and shows a fallback.</li>
+                <li><code>not-found.tsx</code> — UI rendered when <code>notFound()</code> is called or a route doesn't exist.</li>
+                <li><code>route.ts</code> — a Route Handler (an API endpoint) instead of a page.</li>
+                <li><code>template.tsx</code> — like a layout but re-mounts on every navigation.</li>
+              </ul>
+              <p>Knowing these by heart signals to an interviewer that you understand the App Router's mental model: the file system <em>is</em> the configuration.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>App Router vs Pages Router?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>App Router (<code>app/</code>)</h4><p class="muted">The modern default since Next.js 13. Built on React Server Components; components are server-rendered by default. Nested layouts, streaming, <code>loading</code>/<code>error</code> files, Server Actions, and colocation. Data fetched with plain <code>async</code>/<code>await</code>.</p></div>
+                <div><h4>Pages Router (<code>pages/</code>)</h4><p class="muted">The original system. Everything is a client component; data fetching uses <code>getServerSideProps</code>/<code>getStaticProps</code>. Simpler mental model, no Server Components, but no nested layouts or streaming.</p></div>
+              </div>
+              <p>Both still work and can even coexist in one project, but the App Router is where new features land and what Next.js recommends for new apps. PrintArtZ is built entirely on the <strong>App Router</strong> so we get Server Components, streaming, and Server Actions. In an interview, mention that the biggest conceptual shift is that App Router components run on the server by default — the opposite of the always-client Pages Router.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How is a Next.js project structured, and what is <code>next.config.js</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A typical App Router project has an <code>app/</code> directory for routes, a <code>public/</code> directory for static assets served from the root (<code>/logo.png</code>), and config files at the root. <code>next.config.js</code> (or <code>.ts</code>) is where you configure the framework — image domains, redirects, rewrites, experimental flags, environment behavior, and so on.</p>
+              <pre><code>// next.config.js
+const nextConfig = {
+  images: { remotePatterns: [{ hostname: "oaidalleapiprod.blob.core.windows.net" }] },
+  async redirects() {
+    return [{ source: "/home", destination: "/", permanent: true }];
+  },
+};
+module.exports = nextConfig;</code></pre>
+              <p>For PrintArtZ we whitelist the OpenAI/blob image host here so <code>next/image</code> is allowed to optimize the generated artwork returned from our API. You typically keep this file small — most behavior lives in the route files themselves.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does navigation work — the <code>Link</code> component and the router?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>You navigate between routes with the <code>&lt;Link&gt;</code> component, which renders an <code>&lt;a&gt;</code> but intercepts the click to do a <strong>client-side transition</strong> — no full page reload. Next.js also <strong>prefetches</strong> the target route's code (and, in the App Router, its server-rendered payload) when the link scrolls into view, so navigation feels instant.</p>
+              <pre><code>import Link from "next/link";
+&lt;Link href="/create"&gt;Start creating&lt;/Link&gt;
+
+// programmatic navigation (client component)
+"use client";
+import { useRouter } from "next/navigation";
+const router = useRouter();
+router.push("/gallery");</code></pre>
+              <p>Note that in the App Router the router hooks (<code>useRouter</code>, <code>usePathname</code>, <code>useSearchParams</code>) come from <code>next/navigation</code>, not the old <code>next/router</code>, and they only work inside client components. Prefer <code>&lt;Link&gt;</code> for normal navigation and reserve <code>router.push</code> for programmatic cases like redirecting after a form submits.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= RENDERING ================= -->
+        <section class="panel" data-panel="rendering">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are Server Components and Client Components?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>In the App Router, every component is a <strong>Server Component by default</strong>. Server Components render on the server, can talk directly to the database or use secrets, and ship <strong>zero JavaScript</strong> for themselves — only their rendered HTML reaches the browser. The trade-off is that they can't use state, effects, or event handlers, because none of that exists on the server.</p>
+              <p><strong>Client Components</strong> are opted into with the <code>"use client"</code> directive at the very top of the file. They run in the browser (after also rendering on the server for the initial HTML) and can use <code>useState</code>, <code>useEffect</code>, <code>onClick</code>, and browser APIs.</p>
+              <p>The recommended pattern is to keep most of the tree as Server Components for speed and security, and push interactivity to small Client Components at the leaves. PrintArtZ's <code>/create</code> page is a Server Component that checks auth and reads the user's quota on the server, then renders a <code>"use client"</code> <code>CreateForm</code> for the interactive prompt input and submit button.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What does the <code>"use client"</code> directive actually do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>"use client"</code> is a directive placed as the first line of a file. It marks that file — and everything imported into it that isn't already a Server Component — as the <strong>boundary</strong> between the server and client worlds. From that boundary down, components are included in the JavaScript bundle sent to the browser and become interactive.</p>
+              <pre><code>"use client";
+import { useState } from "react";
+
+export function CreateForm() {
+  const [prompt, setPrompt] = useState("");
+  return (
+    &lt;form&gt;
+      &lt;textarea value={prompt} onChange={(e) =&gt; setPrompt(e.target.value)} /&gt;
+      &lt;button&gt;Generate&lt;/button&gt;
+    &lt;/form&gt;
+  );
+}</code></pre>
+              <p>A common misconception is that you sprinkle it on every component — you don't. You put it only on the leaves that truly need interactivity. A key rule: a Server Component can import and render a Client Component, but a Client Component <strong>cannot import a Server Component</strong> directly (you pass it in as <code>children</code> or props instead).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>SSR vs SSG vs ISR vs CSR?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li><strong>CSR (Client-Side Rendering):</strong> the browser downloads JS and renders everything. Snappy in-app navigation, but slower first paint and weaker SEO. Used inside client components after hydration.</li>
+                <li><strong>SSR (Server-Side Rendering):</strong> the server renders full HTML <em>on each request</em>, then hydrates. Best when content is personalized or always fresh — e.g. a page that depends on the logged-in user.</li>
+                <li><strong>SSG (Static Site Generation):</strong> HTML is pre-rendered <em>at build time</em> and served from a CDN. Fastest and cheapest; ideal for content that rarely changes, like marketing pages.</li>
+                <li><strong>ISR (Incremental Static Regeneration):</strong> the best of both — pages are static but automatically re-generated in the background after a <code>revalidate</code> interval, so you get CDN speed with periodically fresh data.</li>
+              </ul>
+              <p>In the App Router you don't pick these with special functions anymore; the rendering strategy is <strong>inferred from how you fetch data</strong>. A route that reads cookies or uses <code>{ cache: "no-store" }</code> becomes dynamic (SSR); one that fetches cacheable data stays static (SSG); adding <code>next: { revalidate: 60 }</code> gives you ISR. PrintArtZ's authenticated pages are dynamic because they depend on the session and database.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is hydration and why can it cause bugs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Hydration</strong> is the process where React takes the server-rendered HTML that's already in the page and "attaches" to it in the browser — wiring up event listeners and state so the static markup becomes interactive, without throwing away and re-rendering the DOM.</p>
+              <p>The classic bug is a <strong>hydration mismatch</strong>: the HTML React produces on the client differs from what the server sent. This happens when your render depends on something that isn't available or identical on the server — <code>Date.now()</code>, <code>Math.random()</code>, <code>window</code>, <code>localStorage</code>, or a locale-formatted date. React warns loudly and may discard the server HTML.</p>
+              <pre><code>// ❌ differs between server and client
+&lt;p&gt;{new Date().toLocaleTimeString()}&lt;/p&gt;
+
+// ✅ render browser-only values after mount
+const [now, setNow] = useState&lt;string | null&gt;(null);
+useEffect(() =&gt; setNow(new Date().toLocaleTimeString()), []);</code></pre>
+              <p>The fix is to keep the first render deterministic and move browser-only work into <code>useEffect</code>, or gate it behind a mounted flag so it only runs client-side.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is streaming with Suspense in the App Router?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Streaming lets the server send HTML in <strong>chunks</strong> as it becomes ready, rather than waiting for the entire page. Fast parts (a header, a shell) show immediately, while slow parts (a component awaiting a database query) stream in when they're done. This dramatically improves perceived performance and Time To First Byte.</p>
+              <p>You get this by wrapping a slow component in <code>&lt;Suspense&gt;</code> with a fallback — or, at the route level, simply by adding a <code>loading.tsx</code> file, which Next.js automatically wires up as a Suspense boundary around the page.</p>
+              <pre><code>import { Suspense } from "react";
+
+export default function GalleryPage() {
+  return (
+    &lt;&gt;
+      &lt;h1&gt;Community gallery&lt;/h1&gt;
+      &lt;Suspense fallback={&lt;GallerySkeleton /&gt;}&gt;
+        &lt;RecentArt /&gt;  {/* async server component */}
+      &lt;/Suspense&gt;
+    &lt;/&gt;
+  );
+}</code></pre>
+              <p>The key insight for interviews: streaming means a slow data dependency no longer blocks the whole page — the user sees a meaningful shell instantly and the slow region fills in progressively.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do Server and Client Components fit together in the same tree?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>They interleave. A Server Component can render a Client Component, and — importantly — a Client Component can render Server Components <strong>passed to it as <code>children</code> or props</strong>, even though it can't <em>import</em> them directly. This "children slot" pattern lets you keep an interactive wrapper on the client while its content stays server-rendered and JS-free.</p>
+              <pre><code>// Server Component (page)
+&lt;ClientTabs&gt;
+  &lt;ServerRenderedPanel /&gt;   {/* stays on the server */}
+&lt;/ClientTabs&gt;</code></pre>
+              <p>Under the hood, React serializes the Server Components' output into a special stream (the RSC payload) and sends it alongside the Client Component bundle; the client stitches them together. The practical takeaway: design so the <strong>interactive boundary is as small and as low</strong> in the tree as possible, so you ship minimal JavaScript. Also remember you can't pass non-serializable props (like functions) from a Server Component into a Client Component — except Server Action functions, which are a special case.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ROUTING & LAYOUTS ================= -->
+        <section class="panel" data-panel="routing">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do dynamic routes work — the <code>[id]</code> folder?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A folder named with square brackets, like <code>[id]</code>, creates a <strong>dynamic segment</strong> that matches any value in that position of the URL. The matched value is passed to your page via the <code>params</code> prop.</p>
+              <pre><code>// app/art/[id]/page.tsx  -&gt; matches /art/123, /art/abc, ...
+export default async function ArtPage({
+  params,
+}: {
+  params: Promise&lt;{ id: string }&gt;;
+}) {
+  const { id } = await params;
+  const art = await db.artwork.findUnique({ where: { id } });
+  if (!art) notFound();
+  return &lt;ArtDetail art={art} /&gt;;
+}</code></pre>
+              <p>There are variations: <code>[...slug]</code> is a <strong>catch-all</strong> that matches multiple segments (<code>/docs/a/b/c</code>), and <code>[[...slug]]</code> is an <strong>optional catch-all</strong> that also matches the base path. In PrintArtZ, an individual artwork detail page lives at <code>app/art/[id]/page.tsx</code>. Note that in recent Next.js, <code>params</code> and <code>searchParams</code> are async and must be awaited.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a layout, and how does nesting work?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <code>layout.tsx</code> defines UI that <strong>wraps a route segment and all of its children</strong>, and it <em>persists</em> across navigation between those children — meaning it doesn't re-render or lose state when you move between sibling pages. The required root layout (<code>app/layout.tsx</code>) renders the <code>&lt;html&gt;</code> and <code>&lt;body&gt;</code> tags and is where you put global providers, fonts, and nav.</p>
+              <pre><code>// app/layout.tsx (root)
+export default function RootLayout({ children }) {
+  return (
+    &lt;html lang="en"&gt;
+      &lt;body&gt;
+        &lt;NavBar /&gt;
+        {children}
+      &lt;/body&gt;
+    &lt;/html&gt;
+  );
+}</code></pre>
+              <p>Layouts <strong>nest</strong>: a layout deeper in the tree renders inside its parent layout via <code>{children}</code>. So <code>app/dashboard/layout.tsx</code> wraps every page under <code>/dashboard</code> while still living inside the root layout. This is a headline App Router feature the old Pages Router lacked.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span><code>layout.tsx</code> vs <code>page.tsx</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>page.tsx</h4><p class="muted">The unique UI for one specific route. Makes a segment publicly accessible. Re-renders when you navigate to a different page. Receives <code>params</code> and <code>searchParams</code>.</p></div>
+                <div><h4>layout.tsx</h4><p class="muted">Shared chrome (nav, sidebar) around many pages. Persists and keeps state across navigation between its children. Receives <code>children</code>. Does not receive <code>searchParams</code>.</p></div>
+              </div>
+              <p>Think of it as: the layout is the frame that stays put, and the page is the picture inside the frame that swaps as you navigate. A subtle but important detail — because layouts don't re-render on navigation, you shouldn't rely on a layout to re-read per-navigation data; put that in the page.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What do <code>loading.tsx</code> and <code>error.tsx</code> do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>loading.tsx</code> is an <strong>instant loading state</strong> for a segment. Next.js automatically wraps the segment's page in a Suspense boundary using this file as the fallback, so while the server renders/streams the page the user immediately sees your skeleton instead of a frozen screen.</p>
+              <p><code>error.tsx</code> is an <strong>error boundary</strong> for the segment. It must be a Client Component and receives the <code>error</code> plus a <code>reset()</code> function to retry rendering. It catches render-phase errors in that segment (and below) so a failure is isolated to that part of the page instead of crashing the whole app.</p>
+              <pre><code>"use client";
+export default function Error({ error, reset }: {
+  error: Error; reset: () =&gt; void;
+}) {
+  return (
+    &lt;div&gt;
+      &lt;p&gt;Couldn't load this page.&lt;/p&gt;
+      &lt;button onClick={reset}&gt;Try again&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+              <p>Together they let you handle the loading and failure states of each route segment declaratively, just by dropping in a file — no manual boilerplate around every data fetch.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are route groups and private folders?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>route group</strong> is a folder wrapped in parentheses, like <code>(marketing)</code> or <code>(app)</code>. It lets you organize routes and — crucially — apply a <em>different layout</em> to a set of routes <strong>without adding a URL segment</strong>. The folder name in parentheses is stripped from the path.</p>
+              <pre><code>app/
+  (marketing)/
+    layout.tsx      // public site chrome
+    page.tsx        -&gt; /
+    pricing/page.tsx -&gt; /pricing
+  (app)/
+    layout.tsx      // authenticated chrome
+    create/page.tsx -&gt; /create</code></pre>
+              <p>Here <code>/</code> and <code>/create</code> get completely different layouts even though neither URL contains "marketing" or "app". A related convention is <strong>private folders</strong> prefixed with an underscore (<code>_components</code>), which are excluded from routing entirely — useful for colocating helpers next to routes without accidentally exposing them as pages.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you generate metadata and static params for dynamic routes?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>For dynamic pages you often want per-item SEO metadata and, for SSG, the list of pages to pre-build. Next.js provides <code>generateMetadata</code> and <code>generateStaticParams</code> for exactly this.</p>
+              <pre><code>// app/art/[id]/page.tsx
+export async function generateStaticParams() {
+  const arts = await db.artwork.findMany({ select: { id: true } });
+  return arts.map((a) =&gt; ({ id: a.id }));   // pre-render these
+}
+
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const art = await db.artwork.findUnique({ where: { id } });
+  return { title: `${art?.title} — PrintArtZ`, openGraph: { images: [art?.url] } };
+}</code></pre>
+              <p><code>generateStaticParams</code> tells Next.js which dynamic values to statically generate at build time (turning a dynamic route into many static pages), and <code>generateMetadata</code> produces the <code>&lt;title&gt;</code>, description, and Open Graph tags per item — so each PrintArtZ artwork page has a proper preview when shared on social media.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= DATA & BACKEND ================= -->
+        <section class="panel" data-panel="data">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you fetch data in a Server Component?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Because Server Components run on the server, you can make them <code>async</code> and simply <code>await</code> your data — no <code>useEffect</code>, no loading state juggling, no client-side fetch waterfall. You can query the database directly or call an API, and only the rendered HTML ships to the browser.</p>
+              <pre><code>// Server Component — runs on the server
+export default async function GalleryPage() {
+  const art = await db.artwork.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 24,
+  });
+  return &lt;Grid items={art} /&gt;;
+}</code></pre>
+              <p>This is a major simplification over the old client-side pattern of "render empty → useEffect → fetch → setState → re-render." The data is ready before the HTML is sent, which is faster and better for SEO. In PrintArtZ, the gallery and artwork pages read directly from Postgres via Prisma inside Server Components, so no database credentials or query logic ever reach the browser.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a Route Handler (API route)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A Route Handler is Next.js's way of building an <strong>HTTP API endpoint</strong> inside the app. You create a <code>route.ts</code> file and export functions named after HTTP methods (<code>GET</code>, <code>POST</code>, etc.). They use the standard Web <code>Request</code>/<code>Response</code> APIs.</p>
+              <pre><code>// app/api/generate/route.ts
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+  const image = await openai.images.generate({ prompt, model: "..." });
+  return NextResponse.json({ url: image.data[0].url });
+}</code></pre>
+              <p>This is how PrintArtZ exposes <code>/api/generate</code>: the client form POSTs a prompt, the handler calls OpenAI on the <strong>Node runtime</strong> (chosen because the OpenAI SDK and our secrets need Node, not the lighter Edge runtime), and returns the image URL as JSON. Route Handlers are the App Router replacement for the Pages Router's <code>pages/api</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>Route Handlers vs Server Actions?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Route Handlers</h4><p class="muted">Explicit HTTP endpoints (<code>route.ts</code>) you call with <code>fetch</code>. Right for public APIs, webhooks, third-party callbacks, streaming responses, or anything a non-React client consumes. You manage request/response yourself.</p></div>
+                <div><h4>Server Actions</h4><p class="muted">Async functions marked <code>"use server"</code> that you call like a normal function from a component or form. Right for mutations tied to your own UI — form submits, deletes. No manual fetch, no endpoint plumbing.</p></div>
+              </div>
+              <p>Rule of thumb: use a <strong>Server Action</strong> for a mutation triggered by your own UI (e.g. saving a title, deleting an artwork), and a <strong>Route Handler</strong> when you need a real URL — a public API, a webhook, or a streaming endpoint. PrintArtZ uses a Route Handler for <code>/api/generate</code> (it streams/returns from OpenAI and is a clear endpoint), which is a perfectly reasonable choice.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a Server Action and how is it used with a form?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A Server Action is an <code>async</code> function that runs on the server but can be invoked directly from the client — you mark it with the <code>"use server"</code> directive. Next.js handles the network call for you; you never write a <code>fetch</code>. They're designed for mutations and integrate with HTML forms, so they even work before JavaScript loads (progressive enhancement).</p>
+              <pre><code>// actions.ts
+"use server";
+import { revalidatePath } from "next/cache";
+
+export async function saveTitle(formData: FormData) {
+  const id = formData.get("id") as string;
+  const title = formData.get("title") as string;
+  await db.artwork.update({ where: { id }, data: { title } });
+  revalidatePath(`/art/${id}`);
+}
+
+// in a component
+&lt;form action={saveTitle}&gt;
+  &lt;input name="title" /&gt;
+  &lt;button&gt;Save&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+              <p>The nice property is that the mutation logic lives on the server (safe to touch the DB and secrets), yet you wire it up as if it were a local function passed to <code>action</code>. Pair it with <code>revalidatePath</code>/<code>revalidateTag</code> to refresh cached data after the change.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does caching work with <code>fetch</code> in the App Router?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Next.js extends the native <code>fetch</code> with caching controls, and the option you choose determines the route's rendering behavior. By default recent Next.js treats fetches as dynamic unless you opt into caching, but the three explicit modes you should know are:</p>
+              <pre><code>// Cache forever (static) — good for rarely-changing data
+await fetch(url, { cache: "force-cache" });
+
+// Always fresh (dynamic / SSR) — no caching
+await fetch(url, { cache: "no-store" });
+
+// Time-based revalidation (ISR)
+await fetch(url, { next: { revalidate: 60 } });
+
+// Tag-based, invalidated on demand
+await fetch(url, { next: { tags: ["gallery"] } });
+// later, after a mutation:
+revalidateTag("gallery");</code></pre>
+              <p>The mental model: caching in the App Router is <strong>per-request, tag-driven, and tied to rendering</strong>. A page that only reads cached data can be statically generated; one that reads uncached/dynamic data (or cookies/headers) is rendered per request. You invalidate with <code>revalidatePath</code> or <code>revalidateTag</code> after a mutation so users see fresh content.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does Auth.js integrate with the App Router in PrintArtZ?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Auth.js (formerly NextAuth) plugs into the App Router through a <strong>catch-all Route Handler</strong> at <code>app/api/auth/[...nextauth]/route.ts</code>. The <code>[...nextauth]</code> catch-all captures every auth sub-path — <code>/api/auth/signin</code>, <code>/callback</code>, <code>/session</code>, <code>/signout</code> — and routes them all to the Auth.js handler.</p>
+              <pre><code>// app/api/auth/[...nextauth]/route.ts
+import { handlers } from "@/auth";
+export const { GET, POST } = handlers;
+
+// reading the session in a Server Component
+import { auth } from "@/auth";
+export default async function CreatePage() {
+  const session = await auth();
+  if (!session) redirect("/api/auth/signin");
+  // ...render the create flow for session.user
+}</code></pre>
+              <p>The clean part is that in Server Components you call <code>auth()</code> to read the session directly on the server — no client round-trip — and gate access (redirecting anonymous users away from <code>/create</code>). This ties together several concepts: catch-all dynamic routes, Route Handlers, and server-side data access.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you read request context — cookies, headers, and <code>searchParams</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The App Router gives you async helpers from <code>next/headers</code> to read per-request data inside Server Components and Route Handlers. Using any of them opts the route into <strong>dynamic rendering</strong>, because the output now depends on the incoming request.</p>
+              <pre><code>import { cookies, headers } from "next/headers";
+
+const cookieStore = await cookies();
+const theme = cookieStore.get("theme")?.value;
+
+const headerList = await headers();
+const ua = headerList.get("user-agent");</code></pre>
+              <p>For query strings, a <code>page.tsx</code> receives a <code>searchParams</code> prop (also async in recent versions), which is the server-side equivalent of reading the URL query — e.g. a paginated gallery reading <code>?page=2</code>. In Client Components you'd instead use the <code>useSearchParams</code> hook from <code>next/navigation</code>. Knowing that these APIs force dynamic rendering is a favorite interview follow-up.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= OPTIMIZATION ================= -->
+        <section class="panel" data-panel="optimization">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What does <code>next/image</code> do for you?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <code>&lt;Image&gt;</code> component is Next.js's optimized replacement for <code>&lt;img&gt;</code>. It automatically serves images in modern formats (WebP/AVIF), resizes them to the right dimensions for the device, lazy-loads offscreen images, and reserves space to prevent <strong>layout shift</strong> (a key Core Web Vitals metric).</p>
+              <pre><code>import Image from "next/image";
+
+&lt;Image
+  src={art.url}
+  alt={art.title}
+  width={512}
+  height={512}
+  placeholder="blur"
+  blurDataURL={art.blurHash}
+/&gt;</code></pre>
+              <p>For external images (like the AI-generated artwork URLs PrintArtZ gets back from OpenAI), you must whitelist the host in <code>next.config.js</code> under <code>images.remotePatterns</code>, otherwise Next.js refuses to optimize them for security. The payoff is meaningfully faster loads and better vitals with almost no manual work.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How does <code>next/font</code> optimize fonts?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>next/font</code> loads fonts at <strong>build time</strong> and self-hosts them from your own domain, so there's no runtime request to Google Fonts — that removes a third-party network round-trip and the privacy concern of leaking user IPs to Google. It also automatically applies <code>font-display: swap</code> and can reserve metrics to eliminate the "flash of unstyled text" and layout shift when the font loads.</p>
+              <pre><code>import { Inter } from "next/font/google";
+const inter = Inter({ subsets: ["latin"] });
+
+export default function RootLayout({ children }) {
+  return &lt;html className={inter.className}&gt;{/* ... */}&lt;/html&gt;;
+}</code></pre>
+              <p>You configure it once in the root layout and apply the generated class name. It's a small feature that meaningfully improves both performance and privacy — a nice detail to mention in an interview.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does code-splitting work in Next.js?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Next.js automatically code-splits <strong>per route</strong> — each page becomes its own JavaScript chunk, so visiting <code>/create</code> doesn't download the code for <code>/gallery</code>. Server Components help even more, because their code never ships to the browser at all. This automatic splitting is a big reason Next.js apps ship less JS than a naive single-bundle SPA.</p>
+              <p>For finer control within a page, you use <code>next/dynamic</code> to lazy-load heavy client components on demand — modals, editors, charts — so they're only fetched when actually needed.</p>
+              <pre><code>import dynamic from "next/dynamic";
+
+const ImageEditor = dynamic(() =&gt; import("./ImageEditor"), {
+  loading: () =&gt; &lt;Spinner /&gt;,
+  ssr: false, // client-only if it touches browser APIs
+});</code></pre>
+              <p>Good candidates for manual splitting are things that are heavy and not needed on first paint. The <code>ssr: false</code> option is handy for components that rely on <code>window</code> and would otherwise cause hydration issues.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you handle metadata and SEO?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The App Router has a built-in <strong>Metadata API</strong>. You export a static <code>metadata</code> object (or the dynamic <code>generateMetadata</code> function) from a layout or page, and Next.js renders the correct <code>&lt;title&gt;</code>, <code>&lt;meta&gt;</code>, and Open Graph / Twitter tags into the document head — no manual <code>&lt;Head&gt;</code> management like the old Pages Router required.</p>
+              <pre><code>// static, in a layout or page
+export const metadata = {
+  title: "PrintArtZ — AI art you can print",
+  description: "Generate custom AI artwork and order prints.",
+  openGraph: { images: ["/og.png"] },
+};</code></pre>
+              <p>Because Server Components render real HTML on the server, crawlers see fully-formed content and these tags immediately — a core SEO advantage over a client-rendered SPA. Next.js also supports file-based conventions like <code>sitemap.ts</code>, <code>robots.ts</code>, and <code>opengraph-image.tsx</code> for generating those assets.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is middleware and when would you use it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Middleware is code in a <code>middleware.ts</code> file at the project root that runs <strong>before a request is completed</strong>, on the Edge runtime, for matching routes. Because it sits in front of the response, it's ideal for cross-cutting concerns: authentication gates, redirects, rewrites, locale detection, A/B testing, or setting headers/cookies.</p>
+              <pre><code>// middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export function middleware(req: NextRequest) {
+  const isAuthed = req.cookies.get("session");
+  if (!isAuthed &amp;&amp; req.nextUrl.pathname.startsWith("/create")) {
+    return NextResponse.redirect(new URL("/api/auth/signin", req.url));
+  }
+  return NextResponse.next();
+}
+
+export const config = { matcher: ["/create/:path*", "/dashboard/:path*"] };</code></pre>
+              <p>Key constraints: middleware runs on the lightweight Edge runtime, so it can't use Node-only APIs or heavy libraries, and it should stay fast because it's on the critical path of every matched request. The <code>matcher</code> config limits which paths it runs on. For PrintArtZ it's a natural place to bounce unauthenticated users away from the authoring routes before the page even renders.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Node runtime vs Edge runtime?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Node runtime</h4><p class="muted">The full Node.js environment. Access to all Node APIs and npm packages (including the OpenAI SDK, Prisma, filesystem). Runs in a regional serverless function; slightly higher cold-start. The default for Route Handlers.</p></div>
+                <div><h4>Edge runtime</h4><p class="muted">A lightweight environment based on Web APIs, deployed globally close to users. Very fast cold starts and low latency, but a restricted API surface — no native Node modules, size limits.</p></div>
+              </div>
+              <p>You choose per Route Handler with <code>export const runtime = "nodejs"</code> or <code>"edge"</code>. PrintArtZ's <code>/api/generate</code> uses the <strong>Node runtime</strong> because the OpenAI SDK and our database access rely on Node APIs that aren't available at the Edge. The Edge runtime shines for tiny, latency-sensitive logic like middleware, geolocation, or simple personalization.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= WHY & DEPLOYMENT ================= -->
+        <section class="panel" data-panel="why">
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>Next.js vs Create React App / Vite SPA?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Next.js</h4><p class="muted">Full-stack framework: SSR/SSG/ISR, file routing, backend (Route Handlers, Server Actions), image/font optimization, built-in SEO. More concepts to learn, and rendering happens partly on a server.</p></div>
+                <div><h4>CRA / Vite SPA</h4><p class="muted">Pure client-side React. Simple mental model and no server needed — just static files. But slower first paint, weaker SEO, and you assemble routing, data fetching, and a backend yourself.</p></div>
+              </div>
+              <p>Create React App is effectively deprecated now; a Vite SPA is the modern equivalent for a client-only app. Choose Next.js when you need SEO, server rendering, or an integrated backend — which describes PrintArtZ (public shareable pages plus an authenticated app plus an OpenAI-calling API). Choose a plain SPA for internal tools or dashboards behind a login where SEO and first-paint don't matter and you already have a separate backend.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Next.js vs Remix?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Next.js</h4><p class="muted">Built around React Server Components and a caching layer; supports SSG/ISR and static export; huge ecosystem; tightly integrated with Vercel. Rendering strategy inferred from data-fetching.</p></div>
+                <div><h4>Remix</h4><p class="muted">Leans hard into web fundamentals — <code>loader</code>/<code>action</code> per route, forms, and progressive enhancement. Always server-rendered (no built-in SSG historically); nested routing with data co-located per route.</p></div>
+              </div>
+              <p>Both are excellent full-stack React frameworks with nested routing and server data loading; the philosophies differ. Next.js emphasizes Server Components and flexible rendering/caching, while Remix emphasizes classic request/response and web-standard forms. In practice Next.js has the larger ecosystem and mindshare, which is a big part of why it was chosen for PrintArtZ. (Remix has since merged much of its direction into React Router.)</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you deploy a Next.js app, and why Vercel?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Vercel is the company behind Next.js, so deployment there is essentially zero-config: you connect the Git repo, and every push builds and deploys, with each pull request getting its own <strong>preview URL</strong>. Vercel automatically maps Next.js features to its platform — static pages to the CDN, Server Components/SSR and Route Handlers to serverless functions, middleware to the Edge network, and ISR revalidation handled for you.</p>
+              <p>You're not locked in, though. Next.js runs anywhere Node runs: you can <code>next build &amp;&amp; next start</code> on your own server, ship a Docker container, or use the standalone output. Some hosts (Netlify, AWS via adapters, self-hosted) support most features. The trade-off is that self-hosting means you configure the caching, image optimization, and serverless plumbing that Vercel gives you automatically.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do environment variables work, and what's the <code>NEXT_PUBLIC_</code> rule?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Next.js loads env vars from <code>.env</code> files (<code>.env.local</code>, <code>.env.production</code>, etc.). The critical security rule: variables are <strong>server-only by default</strong>, and only those prefixed with <code>NEXT_PUBLIC_</code> are inlined into the client bundle and exposed to the browser.</p>
+              <pre><code># .env.local
+OPENAI_API_KEY=sk-...            # server only — never sent to the client
+DATABASE_URL=postgres://...      # server only
+NEXT_PUBLIC_APP_URL=https://printartz.app  # safe to expose</code></pre>
+              <p>This means a secret like PrintArtZ's <code>OPENAI_API_KEY</code> stays on the server (used inside the <code>/api/generate</code> Route Handler) and can never leak into the JS bundle, while something harmless like the public site URL can be shared with the client. A classic interview trap is accidentally prefixing a secret with <code>NEXT_PUBLIC_</code> — that would ship it to every visitor's browser.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>When would you NOT use Next.js?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Next.js is a lot of machinery, so skip it when its strengths don't apply. For a <strong>purely static content site</strong> (docs, a blog, marketing) a static generator like Astro or Hugo ships less JavaScript and is simpler. For an <strong>internal tool or dashboard behind a login</strong> where SEO and first-paint don't matter and you already have a backend, a plain Vite SPA is leaner and has fewer concepts.</p>
+              <p>You'd also avoid it if you need a <strong>non-React</strong> stack, if your team is standardized on another framework, or if your hosting can't run a Node server and you need features beyond a pure static export. The mature answer is that Next.js trades added complexity (server rendering, caching, the Server/Client Component split) for real power — you adopt it when SSR/SEO/an integrated backend pay for that complexity, as they do for PrintArtZ, and not by default.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Walk through what happens when a user generates art on PrintArtZ.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>This ties the whole framework together. (1) The user visits <code>/create</code>, a <strong>Server Component</strong> that calls <code>auth()</code> to confirm they're signed in and reads their remaining quota from Postgres — all on the server, so no secrets or DB logic reach the browser. (2) It renders the <code>"use client"</code> <code>CreateForm</code>, the small interactive leaf that holds the prompt in <code>useState</code>.</p>
+              <p>(3) On submit, the form POSTs to the <code>/api/generate</code> <strong>Route Handler</strong> running on the <strong>Node runtime</strong>, which reads the server-only <code>OPENAI_API_KEY</code>, calls OpenAI, saves the result via Prisma, and returns the image URL. (4) The client shows the generated image via <code>next/image</code> (with the OpenAI host whitelisted in <code>next.config.js</code>). (5) Navigating to the gallery or the artwork's <code>/art/[id]</code> page renders fresh server-side content, and <code>revalidatePath</code> keeps cached lists up to date.</p>
+              <p>That single flow exercises Server vs Client Components, Route Handlers, runtimes, auth, dynamic routes, environment variables, and image optimization — a great way to demonstrate you understand how the pieces fit.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · Next.js study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

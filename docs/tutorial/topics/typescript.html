@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TypeScript — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / TypeScript</div>
+      <h1><span class="g">TypeScript</span> — interview study guide</h1>
+      <p class="lead">
+        TypeScript is the language PrintArtZ is written in end to end — the React frontend, the
+        Next.js API routes, the Prisma database layer, and the shared zod schemas all speak it.
+        This guide goes from absolute basics to advanced, in interview Q&amp;A form with real code
+        and the kind of full, spoken-aloud answer an interviewer expects. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Basics</button>
+          <button class="tab" data-tab="funcobj">Functions &amp; Objects</button>
+          <button class="tab" data-tab="unions">Unions &amp; Narrowing</button>
+          <button class="tab" data-tab="generics">Generics</button>
+          <button class="tab" data-tab="utility">Utility &amp; Advanced Types</button>
+          <button class="tab" data-tab="why">Why TypeScript vs…</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is TypeScript and what problem does it solve?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>TypeScript is a <strong>superset of JavaScript</strong> developed by Microsoft that adds an optional <strong>static type system</strong> on top of the language. Any valid JavaScript is already valid TypeScript, so adoption can be gradual — you add types where they help.</p>
+              <p>The problem it solves: JavaScript is dynamically typed, so a whole class of mistakes — calling a function with the wrong arguments, reading a property that doesn't exist, assuming a value is a string when it's <code>undefined</code> — only surface at <strong>runtime</strong>, often in production. TypeScript catches these at <strong>compile time</strong> in your editor, before the code ever runs.</p>
+              <p>The other huge win is tooling: because the compiler knows the shape of your data, you get accurate autocomplete, inline documentation, safe rename/refactor across a whole codebase, and go-to-definition. On a project like PrintArtZ, where a value flows from a Prisma model through an API route into a React component, types let you change one thing and immediately see everywhere that breaks.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How does TypeScript actually run — what is transpilation?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Browsers and Node.js don't understand TypeScript directly. A compiler (<code>tsc</code>, or a faster tool like SWC/esbuild that Next.js uses) <strong>transpiles</strong> the <code>.ts</code>/<code>.tsx</code> files down to plain JavaScript, stripping out all the type annotations in the process.</p>
+              <pre><code>// input.ts
+const name: string = "PrintArtZ";
+// output.js (types erased)
+const name = "PrintArtZ";</code></pre>
+              <p>The critical consequence is <strong>type erasure</strong>: types exist only during development and compilation — they are completely gone at runtime. That means you can't check a TypeScript type with <code>if (x is MyType)</code> at runtime; the type simply doesn't exist anymore. This is why input coming from outside your program (a form body, an API response) still needs a real runtime validator like <strong>zod</strong>, which PrintArtZ uses on its API routes.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the primitive types and how do you annotate a variable?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>TypeScript has the core JavaScript primitives — <code>string</code>, <code>number</code>, <code>boolean</code>, <code>null</code>, <code>undefined</code>, <code>bigint</code>, <code>symbol</code> — plus arrays, objects, and tuples. You annotate a value with a colon followed by the type.</p>
+              <pre><code>let title: string = "Rainforest poster";
+let copies: number = 30;
+let isPublic: boolean = false;
+let tags: string[] = ["science", "grade-4"];
+let point: [number, number] = [10, 20]; // tuple</code></pre>
+              <p>Note that TypeScript uses lowercase <code>string</code>/<code>number</code>/<code>boolean</code> for the primitive types. The capitalized <code>String</code>/<code>Number</code> refer to the wrapper object types and you almost never want them. In practice you rarely write these annotations explicitly for locals because of inference (see the next question).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is type inference and when should you rely on it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Type inference means TypeScript figures out the type on its own from the value you assign, so you don't have to write it. This keeps code clean while still fully typed.</p>
+              <pre><code>let count = 5;          // inferred as number
+const label = "poster"; // inferred as the literal "poster"
+const nums = [1, 2, 3]; // inferred as number[]</code></pre>
+              <p>The idiomatic style is to <strong>let inference do the work for locals and return values</strong>, and only add explicit annotations where inference can't help or where you want a contract: function <em>parameters</em> (which have no value to infer from) and the public shape of exported functions and data. Adding a return-type annotation to exported functions is a good habit — it makes the function's contract explicit and prevents an accidental internal change from silently altering the return type.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the <code>any</code> type and why is it discouraged?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>any</code> is the escape hatch that turns type checking <strong>off</strong> for a value. A value typed <code>any</code> can be assigned anything, called, indexed, or passed anywhere with no complaints — it effectively opts that variable out of the type system.</p>
+              <pre><code>let data: any = fetchSomething();
+data.foo.bar();     // no error, may crash at runtime
+const n: number = data; // no error either</code></pre>
+              <p>It's discouraged because <code>any</code> is <strong>contagious</strong>: it spreads through everything it touches and silently disables the very safety you adopted TypeScript for. Most serious projects enable the <code>noImplicitAny</code> compiler flag so the compiler flags places where a type is silently <code>any</code>. When you genuinely don't know a type, reach for <code>unknown</code> instead — it's the safe version.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span><code>any</code> vs <code>unknown</code> — what's the difference?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both can hold a value of any type, but they behave oppositely when you try to <em>use</em> that value.</p>
+              <div class="vs">
+                <div><h4>any</h4><p class="muted">Disables checking. You can do anything to it with no errors — property access, calls, assignment to any type. Unsafe: pushes bugs to runtime.</p></div>
+                <div><h4>unknown</h4><p class="muted">The type-safe top type. You can hold anything, but you must <em>narrow</em> it (typeof/instanceof/validation) before you use it. Safe.</p></div>
+              </div>
+              <pre><code>function handle(input: unknown) {
+  // input.trim();          // ❌ compile error — must narrow first
+  if (typeof input === "string") {
+    input.trim();           // ✅ now known to be a string
+  }
+}</code></pre>
+              <p>Rule of thumb: use <code>unknown</code> for values entering your program from the outside (JSON responses, <code>JSON.parse</code> output, thrown errors in a <code>catch</code>) and narrow them. This is exactly the pattern PrintArtZ uses when a request body arrives as <code>unknown</code> and is then validated by a zod schema into a properly typed object.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is <code>strict</code> mode and why turn it on?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>strict</code> is a single flag in <code>tsconfig.json</code> that enables a family of stricter checks at once — most importantly <code>strictNullChecks</code>, <code>noImplicitAny</code>, and <code>strictFunctionTypes</code>. It's the setting that makes TypeScript actually deliver on its promise, and it's on by default in new Next.js projects like PrintArtZ.</p>
+              <pre><code>// tsconfig.json
+{ "compilerOptions": { "strict": true } }</code></pre>
+              <p>The most impactful piece is <strong><code>strictNullChecks</code></strong>: with it on, <code>null</code> and <code>undefined</code> are no longer silently assignable to every type. A <code>string</code> can't secretly be <code>null</code>, so you must handle the empty case explicitly. This eliminates the infamous "cannot read property of undefined" crash by forcing you to deal with it at compile time. Starting a project without <code>strict</code> largely defeats the purpose of adopting TypeScript.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>What's the difference between <code>void</code>, <code>never</code>, and <code>undefined</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These three are easy to confuse but mean distinct things.</p>
+              <ul>
+                <li><strong><code>undefined</code></strong> is a real value — the absence of a value. A variable can literally hold it.</li>
+                <li><strong><code>void</code></strong> is the return type of a function that <em>doesn't return anything meaningful</em> (it may return <code>undefined</code>, but you're not supposed to use it).</li>
+                <li><strong><code>never</code></strong> is the type of something that <em>never happens</em> — a function that always throws or never terminates, or a branch that logically can't be reached.</li>
+              </ul>
+              <pre><code>function log(msg: string): void { console.log(msg); }
+function fail(msg: string): never { throw new Error(msg); }</code></pre>
+              <p><code>never</code> is genuinely useful for <strong>exhaustiveness checking</strong>: if you handle every case of a union in a switch, the <code>default</code> branch narrows to <code>never</code>, and assigning it to a <code>never</code>-typed variable makes the compiler error the day someone adds a new case they forgot to handle.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= FUNCTIONS & OBJECTS ================= -->
+        <section class="panel" data-panel="funcobj">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you type a function's parameters and return value?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>You annotate each parameter after a colon and the return type after the parameter list. Parameters almost always need annotations because there's no value to infer them from; the return type can often be inferred but is good to state explicitly on exported functions.</p>
+              <pre><code>function makeSlug(title: string, id: number): string {
+  return title.toLowerCase().replace(/\s+/g, "-") + "-" + id;
+}
+
+// arrow function, same idea
+const double = (n: number): number =&gt; n * 2;</code></pre>
+              <p>You can also describe the whole function as a type, which is handy for callbacks and props: <code>type Formatter = (input: string) =&gt; string;</code>. This is the shape PrintArtZ uses for event handlers passed into React components.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do optional and default parameters work?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A parameter is made optional with a <code>?</code>, which makes its type include <code>undefined</code>. A default value makes it optional too, and infers the type from the default.</p>
+              <pre><code>function generate(prompt: string, copies?: number) {
+  const n = copies ?? 1;   // handle the undefined case
+  // ...
+}
+
+function greet(name: string = "there") {
+  return `Hi ${name}`;
+}</code></pre>
+              <p>An important rule: <strong>optional parameters must come after required ones</strong>. Also note that <code>copies?: number</code> means the type is <code>number | undefined</code>, so with strict mode on the compiler forces you to handle the missing case — often with the nullish-coalescing operator <code>??</code> as shown.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you type an object, and what does <code>readonly</code> do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>You describe an object's shape by listing its properties and their types. Properties can be optional (<code>?</code>) or <code>readonly</code>, which prevents reassignment after creation.</p>
+              <pre><code>type Poster = {
+  readonly id: string;   // can't be reassigned
+  title: string;
+  copies: number;
+  description?: string;  // optional
+};
+
+const p: Poster = { id: "abc", title: "Volcano", copies: 30 };
+// p.id = "xyz";  // ❌ error — id is readonly</code></pre>
+              <p><code>readonly</code> is a compile-time guarantee only (it's erased at runtime), but it's excellent for expressing intent — for example marking a database record's <code>id</code> and <code>createdAt</code> as immutable so no code accidentally overwrites them. There's also <code>ReadonlyArray&lt;T&gt;</code> / <code>readonly T[]</code> for arrays you don't want mutated.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span><code>interface</code> vs <code>type</code> — which should you use?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both describe the shape of an object and are interchangeable most of the time. The differences are at the edges.</p>
+              <div class="vs">
+                <div><h4>interface</h4><p class="muted">Object/class shapes. Supports <code>extends</code> and <strong>declaration merging</strong> (reopening to add members). Slightly better error messages. Preferred for public API contracts and classes.</p></div>
+                <div><h4>type</h4><p class="muted">A named alias for <em>any</em> type — unions, intersections, tuples, primitives, mapped/conditional types. More flexible; cannot be merged. Preferred for unions and computed types.</p></div>
+              </div>
+              <pre><code>interface User { id: string; name: string; }
+interface Admin extends User { role: "admin"; }
+
+type Status = "idle" | "loading" | "done";  // only type can do this
+type WithId&lt;T&gt; = T &amp; { id: string };</code></pre>
+              <p>A pragmatic answer for an interview: "I use <code>interface</code> for object shapes that might be extended or implemented, and <code>type</code> when I need unions, intersections, or anything computed. The most important thing is being consistent within a codebase." PrintArtZ leans on <code>type</code> because much of its typing is derived from zod schemas and Prisma, which produce union and mapped types.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is an index signature and when do you need one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An index signature lets you type an object whose keys aren't known ahead of time — a dictionary/map-like object where any string key maps to a value of some type.</p>
+              <pre><code>type ScoreBoard = { [playerName: string]: number };
+const scores: ScoreBoard = { amit: 10, sam: 7 };
+scores["newPlayer"] = 3; // allowed</code></pre>
+              <p>Use it for genuinely open-ended maps. When the set of keys is actually a known, finite set, prefer the <code>Record</code> utility type (e.g. <code>Record&lt;Status, string&gt;</code>) or a plain object type — it's more precise and catches typos. A caveat with index signatures under strict settings: reading an arbitrary key can yield <code>undefined</code>, so enable <code>noUncheckedIndexedAccess</code> if you want the compiler to force you to handle missing keys.</p>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= UNIONS & NARROWING ================= -->
+        <section class="panel" data-panel="unions">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are union and intersection types?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>union</strong> (<code>|</code>) means a value is <em>one of</em> several types. An <strong>intersection</strong> (<code>&amp;</code>) means a value is <em>all of</em> several types combined into one shape.</p>
+              <pre><code>type Id = string | number;          // union: either
+type Draggable = { onDrag(): void };
+type Resizable = { onResize(): void };
+type Widget = Draggable &amp; Resizable; // intersection: both</code></pre>
+              <p>Unions model "this could be an error message or a result," which is everywhere in real apps. Intersections model "combine these capabilities" and are how you merge object types. A mental shortcut: for unions the set of allowed <em>values</em> is the union of the two; for intersections the set of required <em>members</em> is the union, so the allowed values shrink.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are literal types and why are they useful?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A literal type is a type whose only allowed value is one specific constant — like the string <code>"loading"</code> rather than any string. Combined with unions, they express a fixed set of options.</p>
+              <pre><code>type Status = "idle" | "loading" | "success" | "error";
+let s: Status = "loading";
+// s = "done"; // ❌ error — not one of the allowed literals</code></pre>
+              <p>This is one of TypeScript's most beloved features because it replaces loose strings and "magic constants" with a checked, autocompleting set. Note that <code>const</code> variables get literal types inferred (<code>const x = "a"</code> is type <code>"a"</code>) while <code>let</code> widens to <code>string</code>; you can force literals on object properties with <code>as const</code>. PrintArtZ types a generation job's status this way so an invalid status is a compile error.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is narrowing, and what are type guards?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Narrowing</strong> is how TypeScript reduces a broad type (like a union) to a more specific one within a block of code, based on checks you write. <strong>Type guards</strong> are those checks. The compiler follows your control flow and updates the type accordingly.</p>
+              <pre><code>function format(value: string | number) {
+  if (typeof value === "string") {
+    return value.toUpperCase(); // narrowed to string here
+  }
+  return value.toFixed(2);      // narrowed to number here
+}</code></pre>
+              <p>The built-in guards are <code>typeof</code> (for primitives), <code>instanceof</code> (for classes), the <code>in</code> operator (does an object have this property), and truthiness/equality checks. Narrowing is what makes union types practical — you handle each possibility in its own branch where the type is precise, and the compiler guarantees you covered them.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you write a custom type guard (type predicate)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>When a check is too complex for the built-in guards, you write a function that returns a <strong>type predicate</strong> — the special return type <code>arg is Type</code>. If it returns <code>true</code>, TypeScript narrows the argument to that type at the call site.</p>
+              <pre><code>type Poster = { kind: "poster"; copies: number };
+
+function isPoster(x: unknown): x is Poster {
+  return typeof x === "object" &amp;&amp; x !== null &amp;&amp; (x as any).kind === "poster";
+}
+
+if (isPoster(data)) {
+  data.copies; // ✅ narrowed to Poster
+}</code></pre>
+              <p>Type predicates are powerful but come with a responsibility: TypeScript <em>trusts</em> your boolean logic — if the runtime check is wrong, you've lied to the compiler and reintroduced unsafety. For validating external data, a schema library like zod is safer because its guard is derived from the same schema that describes the type.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is a discriminated union and why is it a best practice?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A discriminated (or "tagged") union is a union of object types that all share a common literal property — the <strong>discriminant</strong> — whose value is unique per member. Checking that one property lets TypeScript narrow to the exact member, giving you fully typed access to that member's fields.</p>
+              <pre><code>type Result =
+  | { status: "success"; url: string }
+  | { status: "error"; message: string }
+  | { status: "loading" };
+
+function render(r: Result) {
+  switch (r.status) {
+    case "success": return r.url;      // url exists here
+    case "error":   return r.message;  // message exists here
+    case "loading": return "…";
+  }
+}</code></pre>
+              <p>It's a best practice because it makes "impossible states impossible" — you can't have an <code>error</code> with a <code>url</code>, or a <code>success</code> without one. Paired with a <code>never</code> check in the default branch, the compiler forces you to update every switch when a new variant is added. This exact pattern models the state of PrintArtZ's image-generation request (loading → success/error) far more safely than separate booleans like <code>isLoading</code> and <code>hasError</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What do the non-null assertion (<code>!</code>) and optional chaining (<code>?.</code>) do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Optional chaining</strong> <code>?.</code> safely reads a property that might be null/undefined, short-circuiting to <code>undefined</code> instead of throwing. It's a runtime feature and is completely safe.</p>
+              <pre><code>const email = session?.user?.email ?? "guest";</code></pre>
+              <p><strong>The non-null assertion</strong> <code>!</code> tells the compiler "trust me, this is not null/undefined here," removing <code>null</code> and <code>undefined</code> from the type. It is <em>purely</em> a compile-time claim — it generates no runtime check and will crash if you're wrong.</p>
+              <pre><code>const el = document.getElementById("root")!; // asserts non-null</code></pre>
+              <p>The advice interviewers want to hear: prefer real narrowing (an <code>if</code> check) or <code>??</code> over <code>!</code>. Reserve <code>!</code> for cases where you genuinely know more than the compiler and can't easily prove it — overusing it quietly reintroduces the null crashes strict mode was meant to prevent.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= GENERICS ================= -->
+        <section class="panel" data-panel="generics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are generics and what problem do they solve?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Generics let you write a function, type, or class that works over <em>many</em> types while preserving the relationship between inputs and outputs. Think of a type parameter (usually written <code>&lt;T&gt;</code>) as a placeholder the caller fills in.</p>
+              <pre><code>function identity&lt;T&gt;(value: T): T {
+  return value;
+}
+const a = identity("hi");  // T = string, returns string
+const b = identity(42);    // T = number, returns number</code></pre>
+              <p>The alternative — using <code>any</code> — would work but throw away the type: <code>identity(42)</code> would return <code>any</code>, and you'd lose autocomplete and safety on the result. Generics give you reusability <em>and</em> full type information, which is why they're everywhere in libraries (<code>Array&lt;T&gt;</code>, <code>Promise&lt;T&gt;</code>, React's <code>useState&lt;T&gt;</code>).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do generic constraints (<code>extends</code>) work?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>By default a type parameter could be anything, so you can't safely access properties on it. A <strong>constraint</strong> with <code>extends</code> says "T must at least have this shape," which lets you use the guaranteed members while still being generic.</p>
+              <pre><code>function longest&lt;T extends { length: number }&gt;(a: T, b: T): T {
+  return a.length &gt;= b.length ? a : b;
+}
+longest([1, 2], [1, 2, 3]); // ok — arrays have length
+longest("ab", "abc");       // ok — strings have length
+// longest(3, 5);           // ❌ number has no length</code></pre>
+              <p>A very common pattern is constraining a key to be a real key of an object using <code>K extends keyof T</code>, which the built-in <code>Pick</code> and a typed <code>get</code> function both rely on. Constraints are how you make generics precise instead of "anything goes."</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you write a generic type or interface?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Types and interfaces take type parameters too, letting you build reusable container shapes. This is how you'd model a standard API envelope so every endpoint's response is typed consistently.</p>
+              <pre><code>type ApiResponse&lt;T&gt; = {
+  data: T;
+  error: string | null;
+  timestamp: number;
+};
+
+type PosterResponse = ApiResponse&lt;Poster&gt;;
+type PosterListResponse = ApiResponse&lt;Poster[]&gt;;</code></pre>
+              <p>You can also give type parameters defaults (<code>type Box&lt;T = string&gt; = { value: T }</code>) so callers can omit them. This kind of generic envelope is exactly how PrintArtZ keeps its API-route return shapes uniform while varying only the payload type.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you type a generic React component?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A generic component lets one component work with any item type while keeping the render callback fully typed. The type parameter flows from the <code>items</code> prop into the <code>renderItem</code> callback.</p>
+              <pre><code>type ListProps&lt;T&gt; = {
+  items: T[];
+  renderItem: (item: T) =&gt; React.ReactNode;
+};
+
+function List&lt;T&gt;({ items, renderItem }: ListProps&lt;T&gt;) {
+  return &lt;ul&gt;{items.map((it, i) =&gt; &lt;li key={i}&gt;{renderItem(it)}&lt;/li&gt;)}&lt;/ul&gt;;
+}
+
+// usage — T is inferred as Poster, so `p` is typed
+&lt;List items={posters} renderItem={(p) =&gt; p.title} /&gt;</code></pre>
+              <p>The payoff is inference: because you pass <code>posters: Poster[]</code>, TypeScript infers <code>T = Poster</code> and the <code>renderItem</code> parameter is known to be a <code>Poster</code> with full autocomplete — no casting. Note that in <code>.tsx</code> files you sometimes write <code>&lt;T,&gt;</code> with a trailing comma to disambiguate the generic from a JSX tag.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What does a generic constrained by <code>keyof</code> look like in practice?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Combining a generic with <code>keyof</code> lets you write a fully type-safe property accessor: the returned type is exactly the type of the property you asked for, and asking for a non-existent key is a compile error.</p>
+              <pre><code>function getProp&lt;T, K extends keyof T&gt;(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const poster = { id: "1", title: "Volcano", copies: 30 };
+const t = getProp(poster, "title");  // typed as string
+const c = getProp(poster, "copies"); // typed as number
+// getProp(poster, "nope");          // ❌ not a key of poster</code></pre>
+              <p>Here <code>T[K]</code> is an <strong>indexed access type</strong> — "the type of property K on T." This trio of features (generic + <code>keyof</code> + indexed access) is the backbone of type-safe helpers and libraries, and it's a strong signal in interviews that you understand how TypeScript's type-level features compose.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= UTILITY & ADVANCED ================= -->
+        <section class="panel" data-panel="utility">
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are the most useful built-in utility types?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Utility types are generics TypeScript ships that transform existing types so you don't repeat yourself. The ones you'll use daily:</p>
+              <ul>
+                <li><code>Partial&lt;T&gt;</code> — makes all properties optional (great for update/patch objects).</li>
+                <li><code>Required&lt;T&gt;</code> — makes all properties required.</li>
+                <li><code>Pick&lt;T, K&gt;</code> — keeps only the listed keys.</li>
+                <li><code>Omit&lt;T, K&gt;</code> — removes the listed keys.</li>
+                <li><code>Record&lt;K, V&gt;</code> — an object type with keys K and values V.</li>
+                <li><code>Readonly&lt;T&gt;</code> — makes all properties readonly.</li>
+              </ul>
+              <pre><code>type Poster = { id: string; title: string; copies: number };
+
+type PosterUpdate = Partial&lt;Omit&lt;Poster, "id"&gt;&gt;; // edit anything but id
+type PosterPreview = Pick&lt;Poster, "id" | "title"&gt;;
+type CountByStatus = Record&lt;"idle" | "done", number&gt;;</code></pre>
+              <p>The point is that these keep one type as the single source of truth: change <code>Poster</code> and every derived type updates automatically, so a preview or update type can never drift out of sync with the model.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span><code>Pick</code> vs <code>Omit</code>, and <code>Partial</code> vs <code>Required</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These come in complementary pairs — knowing when to pick which is the point.</p>
+              <div class="vs">
+                <div><h4>Pick&lt;T, K&gt;</h4><p class="muted">Allowlist: start from nothing, keep only the keys you name. Best when you want a small subset of a big type.</p></div>
+                <div><h4>Omit&lt;T, K&gt;</h4><p class="muted">Denylist: start from everything, remove the keys you name. Best when you want "all but a few" (e.g. drop server-only fields).</p></div>
+              </div>
+              <div class="vs">
+                <div><h4>Partial&lt;T&gt;</h4><p class="muted">All properties optional. Perfect for PATCH/update payloads and default-merging config objects.</p></div>
+                <div><h4>Required&lt;T&gt;</h4><p class="muted">All properties required. Useful after you've filled in defaults and want to guarantee nothing is missing downstream.</p></div>
+              </div>
+              <p>In PrintArtZ, a form's draft state is naturally a <code>Partial&lt;CreateInput&gt;</code> while it's being filled, and the validated result is the full <code>CreateInput</code> — the utility types express that transition precisely.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What do <code>keyof</code> and <code>typeof</code> do at the type level?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong><code>keyof T</code></strong> produces a union of the property names of a type. <strong><code>typeof value</code></strong> (in a type position) captures the type of an existing runtime value so you can reuse it as a type. They're often combined.</p>
+              <pre><code>const config = { theme: "dark", copies: 30, public: true };
+
+type Config = typeof config;        // { theme: string; copies: number; public: boolean }
+type ConfigKey = keyof Config;      // "theme" | "copies" | "public"</code></pre>
+              <p>The <code>typeof</code>-plus-<code>keyof</code> combo is especially handy with <code>as const</code> objects — for example deriving a union of allowed values from a constant array of options, so your constant data and your types can never disagree. This keeps a single source of truth: the runtime object <em>is</em> the type.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are mapped types?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A mapped type builds a new object type by iterating over the keys of another type and transforming each one — it's a "for each key" at the type level. This is actually how utility types like <code>Partial</code> and <code>Readonly</code> are implemented.</p>
+              <pre><code>// How Partial is defined internally:
+type Partial&lt;T&gt; = { [K in keyof T]?: T[K] };
+
+// A custom one: make every property nullable
+type Nullable&lt;T&gt; = { [K in keyof T]: T[K] | null };
+
+// Modifiers: - removes optional/readonly
+type Concrete&lt;T&gt; = { [K in keyof T]-?: T[K] };</code></pre>
+              <p>You can add or remove <code>?</code> and <code>readonly</code> modifiers (with <code>+</code>/<code>-</code>) and even remap keys with an <code>as</code> clause. Mapped types are how you write reusable transformations over shapes instead of hand-writing each variant — a strong advanced-level topic to demonstrate.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are conditional types?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A conditional type chooses between two types based on a relationship, using the ternary-like <code>T extends U ? X : Y</code> syntax at the type level. They let types make decisions.</p>
+              <pre><code>type ElementType&lt;T&gt; = T extends (infer U)[] ? U : T;
+
+type A = ElementType&lt;string[]&gt;; // string
+type B = ElementType&lt;number&gt;;   // number (not an array, so T)</code></pre>
+              <p>The <code>infer</code> keyword shown above lets you <em>extract</em> a type from within another — here pulling the element type out of an array. Conditional types power many built-ins (<code>ReturnType&lt;T&gt;</code>, <code>Awaited&lt;T&gt;</code>, <code>Exclude&lt;T, U&gt;</code>) and when applied to a union they distribute over each member. They're the most advanced everyday feature; being able to read and reason about them signals real fluency.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you derive types from a zod schema or the Prisma client?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both are examples of TypeScript's superpower on a full-stack app: <strong>one source of truth generates the type</strong>. With zod you write a runtime schema once and infer the static type from it, so the validator and the type can never disagree.</p>
+              <pre><code>import { z } from "zod";
+
+const CreateInput = z.object({
+  prompt: z.string().min(1),
+  copies: z.number().int().min(1).max(100),
+});
+
+type CreateInput = z.infer&lt;typeof CreateInput&gt;;
+// { prompt: string; copies: number } — derived automatically</code></pre>
+              <p>Prisma does the analogous thing from your database schema: running <code>prisma generate</code> produces a fully typed client, so <code>prisma.poster.findMany()</code> returns typed <code>Poster</code> objects with no manual types. PrintArtZ shares the zod-inferred <code>CreateInput</code> type across the client form and the API route, so the browser and server literally agree on the request shape at compile time. This is the pattern to bring up when asked "why TypeScript on a full-stack project?"</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are declaration files (<code>.d.ts</code>) and <code>DefinitelyTyped</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A declaration file (<code>.d.ts</code>) contains only type information — no runtime code — describing the shape of some JavaScript so TypeScript can type-check code that uses it. Libraries written in JavaScript ship (or have community-provided) declaration files so you get types when you import them.</p>
+              <pre><code>// types/global.d.ts — declaring an env var's type
+declare namespace NodeJS {
+  interface ProcessEnv {
+    OPENAI_API_KEY: string;
+    DATABASE_URL: string;
+  }
+}</code></pre>
+              <p><strong>DefinitelyTyped</strong> is the huge community repository of these files, published under the <code>@types/*</code> scope (e.g. <code>npm i -D @types/node</code>). Modern libraries increasingly bundle their own types, but when a plain-JS package doesn't, you install its <code>@types</code> package. You also write <code>.d.ts</code> files yourself to type global variables, augment existing modules, or describe non-code imports.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= WHY ================= -->
+        <section class="panel" data-panel="why">
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>TypeScript vs JavaScript — what do you actually gain?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>TypeScript</h4><p class="muted">Errors caught at compile time, superb autocomplete/refactoring, self-documenting code, safer large-team collaboration. Costs a build step, extra syntax, and a learning curve.</p></div>
+                <div><h4>JavaScript</h4><p class="muted">Runs anywhere with zero build, less ceremony, faster to prototype. But whole classes of bugs only appear at runtime and refactoring is riskier.</p></div>
+              </div>
+              <p>The honest framing for an interview: TypeScript doesn't make your program do anything new at runtime — the output is just JavaScript. What it buys you is <strong>confidence at scale</strong>. The bigger the codebase and team, and the longer it lives, the more the up-front typing cost pays off. For a full-stack, multi-file app like PrintArtZ, the payoff is clear; for a five-line script, it may not be worth it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>When can TypeScript hurt, or when would you not use it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A balanced answer shows maturity. TypeScript can slow you down for tiny throwaway scripts or quick prototypes where the build setup and annotation effort outweigh the benefit. Its types can also become extremely complex — deeply generic or conditional types can produce cryptic error messages and long compile times that hurt more than they help.</p>
+              <p>There's also a <strong>false-confidence risk</strong>: because types are erased at runtime, they don't protect you from bad external data. Code that leans on <code>any</code> or scatters <code>as</code> casts and <code>!</code> assertions can look type-safe while silently reintroducing the exact bugs TypeScript was meant to prevent. The skill is knowing when to stop adding type complexity, and remembering to validate anything crossing your program's boundary at runtime.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Structural vs nominal typing — which does TypeScript use?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>TypeScript uses <strong>structural</strong> typing ("duck typing"): two types are compatible if their <em>shapes</em> match, regardless of their names or where they were declared. Languages like Java or C# are <strong>nominal</strong> — compatibility depends on the declared type name.</p>
+              <pre><code>type Point = { x: number; y: number };
+function print(p: Point) {}
+
+const thing = { x: 1, y: 2, z: 3 };
+print(thing); // ✅ ok — has x and y, extra z is fine</code></pre>
+              <p>This makes TypeScript flexible, but occasionally you <em>want</em> nominal behaviour — e.g. to stop a <code>UserId</code> string from being mixed up with a <code>PostId</code> string. You simulate it with "branded types," adding a phantom property: <code>type UserId = string &amp; { readonly __brand: "UserId" }</code>. Knowing that TypeScript is structural (and how to opt into nominal-like safety when needed) is a classic advanced question.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Type assertions (<code>as</code>) vs type casting — what's the risk?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>type assertion</strong> with <code>as</code> tells the compiler to treat a value as a certain type. Crucially, unlike casting in languages like C#, it does <strong>no conversion and no runtime check</strong> — it's purely you overriding the compiler's judgement. If you're wrong, nothing stops the resulting crash.</p>
+              <pre><code>const data = JSON.parse(text) as Poster; // trusts blindly — unsafe
+// vs. validating for real:
+const data = PosterSchema.parse(JSON.parse(text)); // throws if wrong
+</code></pre>
+              <p>The takeaway interviewers look for: assertions are a promise, not a guarantee. Prefer narrowing or real validation; use <code>as</code> only when you legitimately know more than the compiler (like a DOM element's specific type). The double assertion <code>as unknown as X</code> is an even bigger red flag — a sign the types are being forced rather than modelled correctly.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>TypeScript vs Flow (and other typed-JS options)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>TypeScript</h4><p class="muted">Microsoft-backed, huge ecosystem, first-class editor tooling, its own compiler, and the de-facto industry standard. Most jobs and libraries assume it.</p></div>
+                <div><h4>Flow</h4><p class="muted">Meta's type checker for JS — similar goals and annotations, but far smaller community, fewer typed libraries, and declining adoption. Even Meta projects have migrated toward TS.</p></div>
+              </div>
+              <p>Both add static types to JavaScript via annotations that are stripped before running. TypeScript won decisively on ecosystem, tooling, and momentum — which is why it's what you'll be interviewed on and what PrintArtZ uses. A newer angle worth mentioning: engines are gaining the ability to <em>ignore</em> type annotations directly (Node's type stripping, the "types as comments" proposal), reflecting how mainstream TypeScript-style syntax has become.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · TypeScript study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

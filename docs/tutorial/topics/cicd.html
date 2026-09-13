@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CI/CD — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / CI/CD</div>
+      <h1><span class="g">CI/CD</span> — interview study guide</h1>
+      <p class="lead">
+        CI/CD is how PrintArtZ ships code safely and often: every push runs an automated
+        pipeline on GitHub Actions that installs, generates the Prisma client, typechecks,
+        lints, and builds before anything reaches Vercel. This guide goes from absolute
+        basics to advanced, in interview Q&amp;A form with real workflow YAML and the kind of
+        full, spoken-aloud answer an interviewer expects. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Basics</button>
+          <button class="tab" data-tab="pipelines">Pipelines &amp; GitHub Actions</button>
+          <button class="tab" data-tab="testing">Testing &amp; Quality Gates</button>
+          <button class="tab" data-tab="deploy">Deployment</button>
+          <button class="tab" data-tab="why">Best Practices &amp; Why</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is Continuous Integration (CI)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Continuous Integration</strong> is the practice of merging every developer's work into a shared branch <em>frequently</em> — ideally many times a day — and having an automated system verify each merge immediately. The moment code is pushed or a pull request is opened, a server checks it out, installs dependencies, builds it, and runs the tests.</p>
+              <p>The problem CI solves is “integration hell”: when developers work in isolation for weeks and only combine their code at the end, the merges are huge, conflicts pile up, and bugs from incompatible changes surface all at once. By integrating constantly and testing every change automatically, problems are caught within minutes of being introduced, while the change is small and the author still has it fresh in their head.</p>
+              <p>For PrintArtZ, CI means that a push to <code>develop</code> or <code>main</code> instantly triggers a GitHub Actions run that installs with pnpm, generates the Prisma client, typechecks, lints, and builds — so a broken change is flagged before anyone else pulls it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is Continuous Delivery vs Continuous Deployment (the two CDs)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both start from a working CI pipeline, and both aim to make releasing software routine rather than risky. The difference is the very last step — whether a human presses the button.</p>
+              <p><strong>Continuous Delivery</strong> means every change that passes CI is automatically built and made <em>ready</em> to release — packaged, tested, and pushed to a staging environment — but the actual promotion to production requires a manual approval. You <em>could</em> ship at any moment; you choose when.</p>
+              <p><strong>Continuous Deployment</strong> goes one step further: if the change passes every automated gate, it is deployed to production with <strong>no human intervention</strong> at all. This demands a very mature test suite and good monitoring/rollback, because there is no manual safety check between merge and users.</p>
+              <p>A useful one-liner for interviews: <em>Delivery = always ready to deploy; Deployment = always actually deploying.</em> PrintArtZ effectively uses continuous delivery — Vercel builds every push, and production promotion happens on merge to <code>main</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a CI/CD pipeline?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>pipeline</strong> is an automated, ordered sequence of stages that code passes through on its way from a commit to a deployed application. Think of it as a conveyor belt: each stage does one job — install, build, test, lint, deploy — and the change only advances if the previous stage succeeded.</p>
+              <pre><code>commit → install deps → generate Prisma client → typecheck → lint → build → deploy</code></pre>
+              <p>The value is consistency and speed: the same steps run the same way every time, on a clean machine, with no “works on my laptop” surprises. A pipeline is also a documentation of your quality bar — reading it tells you exactly what a change must satisfy to reach production.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Why do teams adopt CI/CD at all?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The core reasons are <strong>speed, safety, and consistency</strong>. Automating the build/test/deploy cycle removes slow, error-prone manual steps and lets a team release small changes often instead of large, scary “big bang” releases a few times a year.</p>
+              <p>Small, frequent releases are inherently safer: when only a handful of lines changed, a regression is easy to spot and easy to roll back. Automation also creates a repeatable, auditable process — every release goes through identical gates, so quality does not depend on whoever happened to run the deploy that day. The net effect is faster feedback for developers, fewer production incidents, and more time spent building features instead of firefighting.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the difference between a build, a test, and a deploy stage?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are the three canonical phases of a pipeline and it's worth being crisp about each in an interview.</p>
+              <p><strong>Build</strong> turns source code into a runnable/shippable artifact — compiling TypeScript, bundling the Next.js app, producing the <code>.next</code> output. If the code doesn't even compile, nothing else matters, so build usually comes early.</p>
+              <p><strong>Test</strong> verifies the built (or source) code behaves correctly — unit tests, integration tests, end-to-end tests, plus static checks like typecheck and lint. This is your quality gate.</p>
+              <p><strong>Deploy</strong> takes a validated artifact and puts it somewhere it can run — a staging server, then production. In PrintArtZ, Vercel performs the build-and-deploy for the app itself, while GitHub Actions runs the fast validation gates (typecheck, lint, build check) on every push and PR.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does "shift left" mean in the context of CI/CD?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>“Shift left” means moving quality checks <strong>earlier</strong> in the development timeline — to the left on a left-to-right diagram of the software lifecycle. Instead of discovering bugs, security issues, or type errors late (in QA or, worst of all, in production), you catch them at commit or pull-request time.</p>
+              <p>Concretely this looks like running typecheck, lint, unit tests, and even security scans in CI on every PR, and running some of them in a pre-commit hook before the code ever leaves the developer's machine. The economic argument is strong: a bug caught by a typecheck in CI costs seconds to fix, while the same bug caught by a user in production costs an incident, a hotfix, and lost trust.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= PIPELINES & GITHUB ACTIONS ================= -->
+        <section class="panel" data-panel="pipelines">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are workflows, jobs, and steps in GitHub Actions?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>GitHub Actions has a clear hierarchy that interviewers like you to name precisely:</p>
+              <ul>
+                <li><strong>Workflow</strong> — a single YAML file in <code>.github/workflows/</code> that defines an automated process, e.g. <code>ci.yml</code>. A repo can have many workflows.</li>
+                <li><strong>Job</strong> — a group of steps that runs on one runner. Jobs run in <strong>parallel</strong> by default; you can make one depend on another with <code>needs</code>.</li>
+                <li><strong>Step</strong> — a single task inside a job: either a shell command (<code>run</code>) or a reusable <strong>action</strong> (<code>uses</code>). Steps run <strong>sequentially</strong> and share the same filesystem.</li>
+              </ul>
+              <p>So a workflow contains jobs, and each job contains steps. PrintArtZ's <code>ci.yml</code> has one job (<code>build</code>) whose steps install pnpm, generate the Prisma client, typecheck, lint, and build.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a runner?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>runner</strong> is the machine that actually executes a job. When a workflow triggers, GitHub provisions a fresh virtual machine (for GitHub-hosted runners), checks out your code onto it, and runs the job's steps there. You pick the OS with <code>runs-on</code>, e.g. <code>ubuntu-latest</code>, <code>windows-latest</code>, or <code>macos-latest</code>.</p>
+              <p>The key mental model is that each job gets a <strong>clean, ephemeral environment</strong> — nothing from your laptop or from a previous run carries over unless you explicitly cache or upload it. That's exactly why CI catches “works on my machine” problems: if a dependency was only installed globally on your laptop, the pristine runner will fail. You can also register <strong>self-hosted runners</strong> (your own hardware) when you need special resources, more compute, or access to a private network.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do triggers work — push, pull_request, and others?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <code>on:</code> key defines the <strong>events</strong> that start a workflow. The two most common are <code>push</code> (someone pushed commits to a branch) and <code>pull_request</code> (a PR was opened or updated). You can scope them to specific branches so you don't waste runner minutes.</p>
+              <pre><code>on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]</code></pre>
+              <p>Other useful triggers include <code>schedule</code> (cron, e.g. nightly runs), <code>workflow_dispatch</code> (a manual “Run workflow” button), and <code>release</code> (when you publish a GitHub release). PrintArtZ runs its CI on both push and pull_request to <code>main</code> and <code>develop</code>, so the checks run whether you push directly to a branch or open a PR into it.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Walk me through a complete GitHub Actions workflow (show the YAML).</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Here is a realistic CI workflow close to what PrintArtZ runs — a pnpm monorepo with Next.js and Prisma. It installs dependencies, generates and validates the Prisma client, then typechecks, lints, and builds.</p>
+              <pre><code>name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+
+      - name: Validate Prisma schema
+        run: pnpm prisma validate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build</code></pre>
+              <p>Reading it top-down: it triggers on push/PR to the main branches; runs on a fresh Ubuntu runner; checks out the code; sets up pnpm and Node 20 with dependency caching; installs with a <strong>frozen lockfile</strong> (so CI fails if <code>pnpm-lock.yaml</code> is out of date rather than silently resolving different versions); and then runs the quality gates in order. If any step exits non-zero, the run fails and later steps are skipped.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why cache dependencies in CI, and how do you do it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Because runners are ephemeral, every run starts with an empty <code>node_modules</code> and would re-download every package from scratch — slow and wasteful. <strong>Caching</strong> stores the dependency store keyed by a hash of your lockfile, so unchanged dependencies are restored from cache in seconds instead of re-fetched.</p>
+              <p>The simplest way with Node is the built-in cache option on <code>setup-node</code>, which caches the package manager's store:</p>
+              <pre><code>- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+    cache: pnpm   # keyed automatically off pnpm-lock.yaml</code></pre>
+              <p>The cache key is derived from the lockfile hash, so when a dependency changes the key changes and you get a fresh, correct install — you never risk a stale cache serving the wrong versions. For finer control you can use <code>actions/cache</code> directly with your own <code>key</code> and <code>restore-keys</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a matrix build and when would you use one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>matrix</strong> lets one job definition fan out into many parallel runs across combinations of variables — most commonly multiple language versions or operating systems. Instead of copy-pasting near-identical jobs, you declare the axes and GitHub expands them.</p>
+              <pre><code>jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test</code></pre>
+              <p>This example runs the tests on 2 OSes × 3 Node versions = 6 parallel jobs, so you know the app works everywhere it needs to. Use a matrix when you genuinely support multiple environments (a published library, a CLI). For an app deployed to a single known runtime — like PrintArtZ on Vercel with Node 20 — a matrix is usually unnecessary overhead; you just build against the one version you deploy on. Note <code>fail-fast: false</code> lets all combinations finish so you see every failure, not just the first.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you pass data between jobs and steps (outputs, artifacts, needs)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Steps in the same job share a filesystem and can pass small values via <strong>step outputs</strong> written to <code>$GITHUB_OUTPUT</code>. Jobs, however, run on separate runners with separate filesystems, so they need explicit mechanisms.</p>
+              <ul>
+                <li><strong><code>needs</code></strong> — declares job order/dependencies. <code>deploy</code> with <code>needs: [build, test]</code> only runs after both succeed, and can read their <code>outputs</code>.</li>
+                <li><strong>Job outputs</strong> — a job can expose values (e.g. a version number) that a downstream job consumes via <code>needs.build.outputs.version</code>.</li>
+                <li><strong>Artifacts</strong> — use <code>actions/upload-artifact</code> / <code>download-artifact</code> to hand files (a built <code>.next</code> folder, a coverage report) from one job to another, or to keep them for inspection after the run.</li>
+              </ul>
+              <p>A common pattern: a <code>build</code> job compiles and uploads the artifact, then a <code>deploy</code> job with <code>needs: build</code> downloads that exact artifact and ships it — guaranteeing you deploy precisely what you tested rather than rebuilding.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is concurrency control and why does it matter for CI/CD?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>By default, every push can start its own workflow run. If you push three commits to a PR quickly, you'll have three overlapping runs — wasting runner minutes and, worse for deploys, potentially racing to deploy out of order. The <code>concurrency</code> key fixes this by grouping runs and cancelling superseded ones.</p>
+              <pre><code>concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true</code></pre>
+              <p>Here all runs for the same branch (<code>github.ref</code>) share a group, and starting a new one <strong>cancels the in-progress</strong> older run — so only the latest commit's checks matter. For deployment workflows you typically do the opposite for production: use a group but <em>don't</em> cancel in progress, so a live deploy is never interrupted midway. This is a great interview detail because it shows you think about real-world runner cost and deploy safety.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TESTING & QUALITY GATES ================= -->
+        <section class="panel" data-panel="testing">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Unit vs integration vs end-to-end tests — what's the difference?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are three layers of the <strong>testing pyramid</strong>, differing in scope, speed, and cost.</p>
+              <ul>
+                <li><strong>Unit tests</strong> check one small piece — a single function or component — in isolation, with dependencies mocked. They're fast (milliseconds) and you have many of them. E.g. a PrintArtZ price-calculation helper.</li>
+                <li><strong>Integration tests</strong> check that several pieces work together — a route handler talking to a real (test) database, or a form component with its validation logic. Slower, fewer, but they catch wiring bugs unit tests miss.</li>
+                <li><strong>End-to-end (E2E) tests</strong> drive the whole app like a real user, usually in a real browser (Playwright/Cypress) — “log in, open <code>/create</code>, upload an image, place an order.” Slowest and most brittle, so you keep only a handful covering critical flows.</li>
+              </ul>
+              <p>The pyramid guidance: <strong>many unit, fewer integration, few E2E</strong>. Inverting it (mostly E2E) gives slow, flaky pipelines that discourage running tests at all.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Why run linting and typechecking in CI?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Linting</strong> (ESLint) enforces code-style and catches likely-bug patterns — unused variables, missing hook dependencies, accidental <code>console.log</code>. <strong>Typechecking</strong> (<code>tsc --noEmit</code>) verifies the whole codebase is type-consistent — that you're not passing a string where a number is expected or accessing a property that may be undefined.</p>
+              <p>Running them in CI matters because they are <strong>objective, automatic quality gates</strong> that don't depend on a reviewer noticing. A developer might forget to run them locally, or their editor might be configured differently; CI runs the exact same check for everyone, on every change. In PrintArtZ these are two explicit steps (<code>pnpm typecheck</code>, <code>pnpm lint</code>) that must pass before a build is even attempted — cheap checks first, so failures surface in seconds.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are required status checks / quality gates?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>quality gate</strong> is a condition a change must satisfy to advance — typically “all CI checks pass.” On GitHub, you enforce this by marking specific checks as <strong>required status checks</strong> in the branch protection rules for <code>main</code>: the PR's Merge button stays disabled until those checks report success.</p>
+              <p>This is what turns CI from “nice signal” into an actual guardrail. Without required checks, a red pipeline is just a suggestion someone can ignore; with them, broken code physically cannot be merged into the protected branch. For PrintArtZ you'd require the CI <code>build</code> job (which covers install, Prisma validate, typecheck, lint, build) so that nothing type-broken or unbuildable ever lands on <code>main</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is "failing fast" and how do you order pipeline steps for it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Failing fast</strong> means arranging your pipeline so the cheapest, most likely-to-fail checks run first, and the whole run aborts the instant one fails. The goal is to give developers feedback in seconds, not minutes, and to avoid burning compute on a run that's already doomed.</p>
+              <p>In practice you order steps roughly cheapest-to-most-expensive: install → typecheck → lint → unit tests → build → integration/E2E → deploy. There's no point spending three minutes on a full build if the code has a type error a ten-second typecheck would catch. Each step exiting non-zero stops the job, so a lint failure never wastes time on the build. The related knob is <code>fail-fast</code> in a matrix, which cancels sibling combinations once one fails — useful for quick feedback, though sometimes you disable it to see every environment's result.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is code coverage and how should you treat coverage thresholds?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Code coverage</strong> measures what percentage of your code (lines, branches, functions) is exercised by the test suite. Tools like Vitest/Jest produce a coverage report, and you can fail CI if coverage drops below a threshold.</p>
+              <pre><code>- run: pnpm test --coverage
+# vitest.config: coverage.thresholds = { lines: 80, branches: 70 }</code></pre>
+              <p>The nuanced interview answer is that coverage is a <strong>useful signal, not a goal</strong>. High coverage doesn't prove your tests <em>assert</em> anything meaningful — you can execute a line without checking its result. And chasing 100% often means writing low-value tests for trivial code. A pragmatic approach: set a sane floor (say 70–80%), watch the <em>trend</em> so it doesn't silently erode, and focus real testing effort on complex, high-risk logic like pricing or auth rather than getters.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are flaky tests and how do you deal with them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>flaky test</strong> passes or fails non-deterministically without any code change — the classic CI plague. Common causes are timing/race conditions (waiting on a fixed <code>sleep</code> instead of a condition), reliance on real network calls, shared mutable state between tests, or dependence on system time/timezone.</p>
+              <p>Flakiness is corrosive because it trains the team to ignore red builds (“just re-run it”), which defeats the entire point of CI. The right response is to treat a flaky test as a real bug: quarantine it (mark it skipped or move it to a non-blocking lane) so it stops blocking merges, then fix the root cause — replace fixed sleeps with explicit waits, mock external services, isolate state, and freeze time. Blindly adding automatic retries hides the flake rather than fixing it and should be a last resort, not a policy.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you test code that depends on a database in CI?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>For a Prisma app like PrintArtZ, integration tests need a real Postgres to be meaningful. The standard approach is to spin up a database <strong>as part of the CI job</strong> using GitHub Actions <code>services</code> (containers that run alongside your steps), then point Prisma at it and run migrations before the tests.</p>
+              <pre><code>jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: &gt;-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma migrate deploy
+      - run: pnpm test:integration</code></pre>
+              <p>The <code>services</code> block starts an ephemeral Postgres with a health check so the job waits until it's ready; <code>DATABASE_URL</code> points at it; and <code>prisma migrate deploy</code> applies the schema before tests run. Everything is thrown away when the job ends, so each run gets a clean, isolated database — no shared test DB to pollute across runs.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= DEPLOYMENT ================= -->
+        <section class="panel" data-panel="deploy">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a build artifact and why "build once, deploy many"?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>build artifact</strong> is the concrete output of your build step — the thing you actually deploy. For a Next.js app that's the compiled <code>.next</code> output (and static assets); for other stacks it might be a JAR, a Docker image, or a tarball.</p>
+              <p>The principle <strong>“build once, deploy many”</strong> says you should build the artifact a single time and then promote that <em>same</em> artifact through your environments — dev → staging → production — rather than rebuilding at each stage. If you rebuild for production, you can't be certain it's byte-for-byte what you tested in staging (dependencies could have shifted, a flaky build could differ). Promoting one immutable artifact guarantees that what you validated is exactly what users get, which is central to reliable releases.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are environments (dev, staging, production)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Environments</strong> are separate, isolated instances of the app used at different stages of confidence.</p>
+              <ul>
+                <li><strong>Development / preview</strong> — where new features are tried out; on Vercel every PR gets its own <em>preview deployment</em> with a unique URL so reviewers can click through the change.</li>
+                <li><strong>Staging</strong> — a production-like environment (same config shape, similar data) used for final validation before release. It's the last rehearsal.</li>
+                <li><strong>Production</strong> — the live environment real users hit.</li>
+              </ul>
+              <p>Each environment has its own configuration and its own database, so testing on staging can never touch real customer data. This separation lets you catch environment-specific problems (a missing env var, a migration issue) before they reach users. PrintArtZ maps cleanly onto this: PR previews for development, and the <code>main</code> branch promoted to production on Vercel.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do secrets and environment variables work in CI/CD?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Environment variables</strong> configure the app per environment — things like <code>DATABASE_URL</code> or feature flags that differ between staging and production. <strong>Secrets</strong> are the sensitive subset: API keys, database passwords, auth tokens. The golden rule is that secrets must <strong>never be committed to the repo</strong>; they're injected at build/run time.</p>
+              <pre><code># Reference a repo/org secret in a workflow
+      - run: pnpm deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}</code></pre>
+              <p>In GitHub Actions you store these under repository/organization/environment <strong>Secrets</strong>, and reference them as <code>${{ secrets.NAME }}</code>; GitHub automatically masks them in logs. Vercel has its own environment-variable UI scoped to Preview/Production. This is why PrintArtZ ships a <code>.env.example</code> (documenting <em>which</em> variables are needed, with dummy values) while the real values live only in the platform's secret store, and <code>.env</code> is gitignored.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a rollback and what strategies enable a fast one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>rollback</strong> is reverting production to a previous known-good version after a bad deploy. When something breaks in production, your first priority is usually to <em>stop the bleeding</em> by rolling back, then diagnose calmly — not to hot-fix forward under pressure.</p>
+              <p>Fast rollbacks come from <strong>immutable, versioned deployments</strong>. Because Vercel keeps every previous deployment, a rollback is essentially re-pointing the production alias at the last good deployment — near-instant, no rebuild. The alternatives are “roll forward” (ship a fix commit, which still has to pass CI and build) or, in git terms, <code>git revert</code> the offending commit. The big caveat interviewers probe: <strong>database migrations</strong>. Code rolls back instantly but a schema change may not, so you write <em>backward-compatible</em> migrations (add columns before using them, avoid destructive changes in the same release) so old and new code can both run against the DB during a rollback.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>Blue-green vs canary vs rolling deployments?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are three strategies for releasing a new version while minimizing risk and downtime.</p>
+              <div class="vs">
+                <div><h4>Blue-green</h4><p class="muted">Run two identical environments — “blue” (current) and “green” (new). Deploy to green, test it, then flip <em>all</em> traffic over at once. Instant switch and instant rollback (flip back), but you pay for double the infrastructure.</p></div>
+                <div><h4>Canary</h4><p class="muted">Release the new version to a <em>small slice</em> of users (say 5%), watch metrics/errors, then gradually ramp to 100%. Limits the blast radius of a bad release; needs good monitoring and traffic-splitting.</p></div>
+              </div>
+              <p><strong>Rolling</strong> deployment sits between them: you replace instances a few at a time — take some old ones down, bring new ones up, repeat — so there's never full downtime and never a full duplicate environment. The trade-off is that during the roll, both versions serve traffic simultaneously (so they must be compatible), and rollback is slower than a blue-green flip. Which you pick depends on infrastructure, risk tolerance, and how good your monitoring is. For a Vercel app, atomic deployments with instant alias switching behave much like blue-green.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do database migrations fit into a deployment pipeline?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Schema changes are the trickiest part of deploying because, unlike code, the database is <strong>stateful and shared</strong> — you can't just swap it out. With Prisma, migrations are checked into the repo, and in CI you validate them (<code>prisma validate</code>, <code>prisma migrate diff</code>) while in the deploy step you apply them with <code>prisma migrate deploy</code>.</p>
+              <p>The critical discipline is making migrations <strong>backward-compatible</strong> and applying them in the right order relative to code. A safe pattern is <em>expand/contract</em>: first deploy an additive migration (add the new column, nullable) that old code ignores; then deploy the code that uses it; and only in a later release remove the old column. This decoupling means a code rollback never leaves the schema in a state the running code can't handle — the number-one cause of “we can't roll back” incidents. PrintArtZ generates and validates the Prisma client in CI on every push precisely so schema drift is caught before deploy.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does deployment work for a monorepo, and why does affected-detection matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>In a pnpm monorepo like PrintArtZ, multiple packages/apps live in one repo. The naive approach — rebuild and redeploy everything on every commit — gets slow and wasteful as the repo grows, because a change to one package triggers work on all of them.</p>
+              <p>The optimization is <strong>affected/changed detection</strong>: figure out which packages a commit actually touched (directly or via the dependency graph) and only build/test/deploy those. Tools like Turborepo or Nx compute this graph and additionally <strong>cache task outputs</strong> keyed by input hashes, so an unchanged package's build is restored from cache instead of re-run. You can also scope GitHub Actions with <code>paths:</code> filters so a workflow only fires when relevant files change. The payoff is CI that stays fast as the monorepo scales, plus deploys that don't needlessly ship untouched services — Vercel similarly skips builds when a project's files didn't change.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is OIDC / keyless deployment and why prefer it over long-lived secrets?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Traditionally you'd store a long-lived cloud credential (an AWS access key, a deploy token) as a GitHub secret. The risk is that a long-lived secret is a standing liability: if it leaks, it's valid until someone notices and rotates it, and it often has broad permissions.</p>
+              <p><strong>OIDC (OpenID Connect)</strong> lets the workflow authenticate to the cloud provider <em>without</em> a stored secret. GitHub issues a short-lived, signed identity token for the specific workflow run; the cloud provider is configured to trust GitHub's OIDC issuer and, on presentation of that token, hands back <strong>temporary</strong> credentials scoped to exactly what's needed. Because the credentials expire in minutes and are minted per-run, there's nothing durable to leak, no manual rotation, and you can tightly restrict which repo/branch/environment is allowed to assume the role. It's the modern best practice for cloud deployments and a strong senior-level talking point.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= BEST PRACTICES & WHY ================= -->
+        <section class="panel" data-panel="why">
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>Trunk-based development vs Gitflow?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are two branching strategies that shape how CI/CD works day to day.</p>
+              <div class="vs">
+                <div><h4>Trunk-based</h4><p class="muted">Everyone commits to one main branch (“trunk”) via short-lived feature branches merged within a day or two. Integrations are small and constant — a natural fit for CI/CD and continuous deployment. Incomplete work hides behind feature flags.</p></div>
+                <div><h4>Gitflow</h4><p class="muted">Long-lived branches — <code>main</code>, <code>develop</code>, plus <code>feature/</code>, <code>release/</code>, <code>hotfix/</code> branches — with formal release cycles. More structure and ceremony; better suited to versioned/scheduled releases, but heavier and more merge-prone.</p></div>
+              </div>
+              <p>The modern default for web apps that deploy continuously is <strong>trunk-based</strong>, because short-lived branches keep merges tiny and feedback fast, which is exactly what CI/CD rewards. Gitflow still makes sense when you ship discrete versions (desktop software, libraries with release trains). PrintArtZ uses a light two-branch model — <code>develop</code> for integration and <code>main</code> for production — a common pragmatic middle ground.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is branch protection and what rules would you enable?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Branch protection</strong> is a set of GitHub rules on important branches (like <code>main</code>) that prevent risky operations and enforce your process automatically, so quality doesn't rely on everyone remembering the etiquette.</p>
+              <p>Sensible rules to enable: <strong>require pull requests</strong> (no direct pushes to <code>main</code>); <strong>require status checks to pass</strong> (the CI build/typecheck/lint must be green before merge); <strong>require at least one review</strong>; <strong>require branches to be up to date</strong> before merging (so checks ran against the latest base); block force-pushes and branch deletion; and optionally require signed commits or a linear history. Together these make it structurally impossible to merge broken or unreviewed code into production — the enforcement backbone that makes CI meaningful rather than advisory.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why automate deployments instead of deploying manually?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Manual deploys — someone SSHing in and running commands, or copying files — are slow, inconsistent, and dangerous. Every manual step is a chance for human error: a skipped migration, a wrong environment, a forgotten build flag. And the knowledge often lives in one person's head, which is a bus-factor risk.</p>
+              <p>Automated deployments are <strong>repeatable, fast, and auditable</strong>. The exact same, tested sequence runs every time, so releases become boring — which is the goal. Boring releases can be frequent, and frequent releases mean small changes that are easy to reason about and roll back. Automation also produces a log of what was deployed, when, and from which commit, giving you traceability for audits and incident reviews. In short, you replace a fragile human ritual with a reliable pipeline, freeing engineers to build instead of babysitting deploys.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>GitHub Actions vs Jenkins vs GitLab CI?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>All three run pipelines, but they differ in hosting model and ecosystem.</p>
+              <div class="vs">
+                <div><h4>GitHub Actions</h4><p class="muted">Native to GitHub, config lives in <code>.github/workflows/*.yml</code> in the repo. Cloud-hosted runners out of the box, huge Marketplace of reusable actions, zero server to maintain. Ideal when your code is already on GitHub — which is why PrintArtZ uses it.</p></div>
+                <div><h4>Jenkins</h4><p class="muted">The veteran, <em>self-hosted</em> and open-source. Maximally flexible with a massive plugin catalog, but you run and maintain the server(s) yourself and manage plugin/security upkeep. Strong for complex, on-prem, or highly customized enterprise pipelines.</p></div>
+              </div>
+              <p><strong>GitLab CI</strong> is GitLab's built-in equivalent to GitHub Actions — pipelines defined in <code>.gitlab-ci.yml</code>, tightly integrated with GitLab's DevOps platform (repo, registry, environments all in one). The honest interview summary: for a GitHub-hosted project, Actions is the path of least resistance; GitLab CI is the natural pick if you live in GitLab; and Jenkins wins when you need total control, on-prem hosting, or have heavy existing investment — at the cost of maintaining infrastructure yourself.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you keep a CI/CD pipeline itself secure?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The pipeline runs with credentials and touches production, so it's a high-value target — “supply chain” attacks increasingly aim at CI. Several practices harden it:</p>
+              <ul>
+                <li><strong>Pin third-party actions</strong> to a full commit SHA rather than a mutable tag like <code>@v4</code>, so a compromised tag can't silently inject code.</li>
+                <li><strong>Least-privilege tokens</strong> — set <code>permissions:</code> to the minimum (default the <code>GITHUB_TOKEN</code> to read-only, grant write only where needed) and prefer short-lived OIDC credentials over stored secrets.</li>
+                <li><strong>Guard <code>pull_request_target</code></strong> and never run untrusted PR code with access to secrets, which is a classic exfiltration vector for forks.</li>
+                <li><strong>Scan in the pipeline</strong> — dependency audits (<code>pnpm audit</code>), Dependabot, secret scanning, and SAST as gates.</li>
+                <li><strong>Protected environments</strong> with required reviewers for production deploys.</li>
+              </ul>
+              <p>The theme is treating the pipeline as production-grade infrastructure: minimal permissions, no long-lived secrets, pinned dependencies, and automated scanning of both your code and your CI config.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What metrics tell you a CI/CD process is healthy (DORA)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The industry-standard answer is the <strong>four DORA metrics</strong>, which correlate with high-performing teams:</p>
+              <ul>
+                <li><strong>Deployment frequency</strong> — how often you ship to production. Elite teams deploy on demand, many times a day.</li>
+                <li><strong>Lead time for changes</strong> — how long from commit to running in production. Shorter means smaller, safer batches.</li>
+                <li><strong>Change failure rate</strong> — what fraction of deploys cause an incident/rollback. Lower is better; you want speed without breakage.</li>
+                <li><strong>Time to restore service (MTTR)</strong> — how quickly you recover from a failed deploy or outage.</li>
+              </ul>
+              <p>The insight interviewers want is that these balance <em>throughput</em> (frequency, lead time) against <em>stability</em> (failure rate, recovery). Good CI/CD improves all four at once — automated gates let you deploy often <em>and</em> safely, and fast rollbacks keep MTTR low. Chasing speed while ignoring failure rate, or vice versa, misses the point; the elite quadrant is fast <em>and</em> stable.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does CI/CD relate to feature flags and progressive delivery?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Feature flags</strong> decouple <em>deploying</em> code from <em>releasing</em> a feature. You merge and deploy incomplete or risky work behind a flag that's off in production, so the code ships continuously (great for trunk-based development) but users don't see it until you flip the flag — no long-lived feature branches needed.</p>
+              <p>This unlocks <strong>progressive delivery</strong>: turn the feature on for internal users, then 5% of traffic, then everyone, watching metrics at each step — essentially a canary controlled by a flag rather than by infrastructure. If something goes wrong you flip the flag off instantly, which is far faster than a redeploy or rollback. The trade-offs to mention: flags add conditional complexity and must be cleaned up once a feature is fully rolled out, or you accumulate “flag debt.” Together, CI/CD plus feature flags let a team integrate constantly while controlling exposure precisely.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · CI/CD study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

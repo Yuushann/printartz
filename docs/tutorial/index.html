@@ -134,15 +134,15 @@
       // Study topic cards
       const TOPICS = [
         ["React", "react", true, "Components, props, state, hooks, performance, why React."],
-        ["TypeScript", "typescript", false, "Types, generics, narrowing, utility types."],
-        ["Next.js", "nextjs", false, "App Router, server vs client, routing, rendering."],
-        ["PostgreSQL", "postgresql", false, "SQL, indexes, transactions, why Postgres vs others."],
-        ["ORMs & Prisma", "orms", false, "What an ORM is, migrations, N+1, when to use raw SQL."],
-        ["CI/CD", "cicd", false, "Pipelines, GitHub Actions, testing, deployments."],
-        ["Servers & Hosting", "servers", false, "Client/server, serverless, workers, queues."],
-        ["AI app concepts", "ai", false, "Prompts, tokens, guardrails, vision, cost control."],
-        ["Auth & OAuth", "auth", false, "Sessions vs JWT, OAuth 2.0, cookies, security."],
-        ["Web fundamentals", "web-basics", false, "HTTP, HTML/CSS/JS, the browser, REST."],
+        ["TypeScript", "typescript", true, "Types, generics, narrowing, utility types."],
+        ["Next.js", "nextjs", true, "App Router, server vs client, routing, rendering."],
+        ["PostgreSQL", "postgresql", true, "SQL, indexes, transactions, why Postgres vs others."],
+        ["ORMs & Prisma", "orms", true, "What an ORM is, migrations, N+1, when to use raw SQL."],
+        ["CI/CD", "cicd", true, "Pipelines, GitHub Actions, testing, deployments."],
+        ["Servers & Hosting", "servers", true, "Client/server, serverless, workers, queues."],
+        ["AI app concepts", "ai", true, "Prompts, tokens, guardrails, vision, cost control."],
+        ["Auth & OAuth", "auth", true, "Sessions vs JWT, OAuth 2.0, cookies, security."],
+        ["Web fundamentals", "web-basics", true, "HTTP, HTML/CSS/JS, the browser, REST."],
       ];
       document.getElementById("topicGrid").innerHTML = TOPICS.map(
         ([name, slug, ready, desc]) =>

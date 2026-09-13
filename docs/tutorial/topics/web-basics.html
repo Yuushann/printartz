@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web Fundamentals — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / Web Fundamentals</div>
+      <h1><span class="g">Web Fundamentals</span> — interview study guide</h1>
+      <p class="lead">
+        Before any framework, a full-stack developer needs a solid mental model of how the web
+        actually works — what a browser does, how HTTP moves data, and how the pieces of a page
+        fit together. This guide walks from absolute basics to advanced, in interview Q&amp;A form
+        with real requests and snippets, and ties back to how PrintArtZ's browser and server talk.
+        Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="how">How the web works</button>
+          <button class="tab" data-tab="http">HTTP</button>
+          <button class="tab" data-tab="langs">HTML / CSS / JS</button>
+          <button class="tab" data-tab="apis">APIs &amp; Data</button>
+          <button class="tab" data-tab="browser">Browser &amp; State</button>
+          <button class="tab" data-tab="compare">Comparisons</button>
+        </div>
+
+        <!-- ================= HOW THE WEB WORKS ================= -->
+        <section class="panel" data-panel="how">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the client–server model?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The web is built on a <strong>client–server</strong> relationship. A <strong>client</strong> is the program that requests something — almost always a web browser, but also a mobile app or a script. A <strong>server</strong> is a program running on a machine somewhere that listens for requests and sends back responses (HTML pages, JSON data, images, and so on).</p>
+              <p>The key idea is that they are separate programs, often on separate machines, communicating over a network using an agreed protocol (HTTP). The client never runs the server's code and the server never runs the client's code; they only exchange messages. This separation is what lets one server serve millions of different browsers, and lets a browser talk to many different servers.</p>
+              <p>In PrintArtZ, your browser is the client and the Next.js backend is the server. When you generate art, the browser (client) sends a request to <code>/api/generate</code> and the server does the heavy lifting and returns a result.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What actually happens when you type a URL and press Enter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>This is the classic interview question because it touches every layer. Walking through <code>https://printartz.com</code>:</p>
+              <ul>
+                <li><strong>DNS lookup:</strong> the browser translates the domain name into an IP address by asking DNS servers, because the network routes by IP, not by name.</li>
+                <li><strong>TCP connection:</strong> the browser opens a TCP connection to that IP on port 443 (the standard three-way handshake) so data can travel reliably.</li>
+                <li><strong>TLS handshake:</strong> because it's HTTPS, the client and server negotiate encryption and verify the server's certificate, establishing a secure channel.</li>
+                <li><strong>HTTP request:</strong> the browser sends an HTTP request (e.g. <code>GET /</code>) over that encrypted connection.</li>
+                <li><strong>Server responds:</strong> the server processes it and returns an HTTP response — a status code plus headers plus the HTML body.</li>
+                <li><strong>Render:</strong> the browser parses the HTML, fetches linked CSS/JS/images (more requests), builds the page, and runs JavaScript to make it interactive.</li>
+              </ul>
+              <p>A strong answer names DNS → TCP → TLS → HTTP → render in order and can explain <em>why</em> each step exists.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is DNS and why do we need it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>DNS</strong> (Domain Name System) is the internet's phone book. Humans remember names like <code>printartz.com</code>, but computers route packets using numeric <strong>IP addresses</strong> like <code>93.184.216.34</code>. DNS is the distributed system that maps one to the other.</p>
+              <p>When you request a domain, your machine asks a chain of DNS servers — a resolver, then root, TLD (<code>.com</code>), and finally the domain's authoritative server — until it gets the IP. Results are <strong>cached</strong> at many levels (your OS, your browser, your ISP) with a TTL, so repeat lookups are near-instant. Without DNS, we'd have to memorize IPs, and sites couldn't change servers without breaking every link.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is an IP address, a port, and a domain — how do they relate?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>IP address</strong> identifies a machine on the network. A <strong>port</strong> identifies a specific program/service on that machine — like an apartment number within a building. Web servers conventionally use port <strong>80</strong> for HTTP and <strong>443</strong> for HTTPS.</p>
+              <p>A <strong>domain</strong> is the human-friendly name that DNS resolves to an IP. So <code>https://printartz.com</code> means: use HTTPS (implying port 443), resolve <code>printartz.com</code> to an IP via DNS, and connect to that IP on port 443. During local development you'll often see <code>http://localhost:3000</code> — <code>localhost</code> is your own machine (IP <code>127.0.0.1</code>) and <code>3000</code> is the port the dev server listens on.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does a browser actually do to turn HTML into a page?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The browser's rendering engine goes through a pipeline. It <strong>parses the HTML</strong> into the DOM tree, and parses CSS into the CSSOM (style rules). It combines them into a <strong>render tree</strong> of what's visible, computes <strong>layout</strong> (the size and position of every box), and then <strong>paints</strong> pixels to the screen, often compositing layers for performance.</p>
+              <p>Along the way it discovers linked resources — stylesheets, scripts, images, fonts — and issues more HTTP requests to fetch them. JavaScript can modify the DOM, which may force the browser to re-run layout (<em>reflow</em>) and paint again. Understanding this is why front-end performance advice exists: minimizing render-blocking CSS/JS and avoiding layout thrash keeps the first paint fast.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are TCP and TLS, and why are they part of loading a page?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>TCP</strong> (Transmission Control Protocol) is the transport layer HTTP rides on. It provides a reliable, ordered byte stream: it establishes a connection with a handshake, retransmits lost packets, and guarantees data arrives in order. HTTP itself doesn't worry about lost packets because TCP handles it.</p>
+              <p><strong>TLS</strong> (Transport Layer Security) is the encryption layer that turns HTTP into HTTPS. After the TCP connection is up, the TLS handshake negotiates keys and verifies the server's certificate (proving you're really talking to <code>printartz.com</code> and not an impostor). From then on all HTTP traffic is encrypted, so no one on the network can read passwords, session cookies, or the images you generate.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is a CDN and how does it fit into the request path?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>CDN</strong> (Content Delivery Network) is a geographically distributed network of cache servers that sit in front of your origin server. When a user requests a static asset (an image, a CSS bundle, a pre-rendered page), the CDN serves it from an <strong>edge</strong> location physically close to the user instead of making the request travel to a distant origin.</p>
+              <p>This does two things: it cuts <strong>latency</strong> (the data travels a shorter distance) and it offloads traffic from the origin, improving scalability and resilience. DNS often points the domain at the CDN, which then decides whether to serve a cached copy or forward to origin. For PrintArtZ, generated images and static assets are ideal CDN candidates, while personalized, logged-in pages usually bypass the cache and hit the server.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= HTTP ================= -->
+        <section class="panel" data-panel="http">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is HTTP and what does a request/response look like?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>HTTP</strong> (HyperText Transfer Protocol) is the request–response protocol the web speaks. The client sends a request describing what it wants; the server sends back a response. It is <strong>stateless</strong> — each request is independent and the server remembers nothing between them by default (which is why we need cookies/tokens for sessions).</p>
+              <p>A raw request and response are just text with a structured shape:</p>
+              <pre><code>GET /api/gallery HTTP/1.1
+Host: printartz.com
+Accept: application/json
+Cookie: session=abc123
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{ "items": [ { "id": 1, "title": "Sunset" } ] }</code></pre>
+              <p>The request has a <strong>method</strong>, a <strong>path</strong>, headers, and an optional body; the response has a <strong>status line</strong>, headers, and a body.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the main HTTP methods and when do you use each?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Methods describe the <em>intent</em> of a request. The common ones map to CRUD-style operations:</p>
+              <ul>
+                <li><strong>GET</strong> — retrieve data; must not change anything on the server. Fetching the gallery is a GET.</li>
+                <li><strong>POST</strong> — create something new or trigger an action. Submitting the PrintArtZ create form hits <code>POST /api/generate</code>.</li>
+                <li><strong>PUT</strong> — replace a resource entirely with the payload you send.</li>
+                <li><strong>PATCH</strong> — partially update a resource (change just some fields).</li>
+                <li><strong>DELETE</strong> — remove a resource.</li>
+              </ul>
+              <p>These are conventions, not enforced rules, but following them makes an API predictable and lets caches, proxies, and browsers behave correctly (for example, a browser will happily re-send a GET but warns before re-sending a POST).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What do the HTTP status code families (2xx/3xx/4xx/5xx) mean?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The first digit of a status code tells you the category:</p>
+              <ul>
+                <li><strong>2xx — Success:</strong> <code>200 OK</code>, <code>201 Created</code> (after a POST), <code>204 No Content</code>.</li>
+                <li><strong>3xx — Redirection:</strong> <code>301</code> (moved permanently), <code>302/307</code> (temporary), <code>304 Not Modified</code> (use your cached copy).</li>
+                <li><strong>4xx — Client error:</strong> the request was wrong. <code>400</code> bad request, <code>401</code> unauthenticated, <code>403</code> forbidden, <code>404</code> not found, <code>429</code> too many requests.</li>
+                <li><strong>5xx — Server error:</strong> the server failed. <code>500</code> internal error, <code>502</code> bad gateway, <code>503</code> service unavailable.</li>
+              </ul>
+              <p>The interview-worthy distinction: <strong>4xx is the client's fault, 5xx is the server's fault</strong>. If PrintArtZ returns <code>401</code> from <code>/api/generate</code>, your session is missing; a <code>500</code> means the server code threw.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are HTTP headers and what are common ones?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Headers are key–value metadata attached to a request or response — they describe the message rather than being the message itself. They tell each side how to interpret the body, how to cache, who's asking, and more.</p>
+              <p>Common request headers: <code>Content-Type</code> (format of the body being sent), <code>Accept</code> (formats the client can handle), <code>Authorization</code> (credentials/token), <code>Cookie</code> (stored session data), <code>User-Agent</code> (the client software). Common response headers: <code>Content-Type</code> (format of the returned body), <code>Cache-Control</code> (how/whether to cache), <code>Set-Cookie</code> (store this cookie), and CORS headers like <code>Access-Control-Allow-Origin</code>. When PrintArtZ posts JSON it sends <code>Content-Type: application/json</code> so the server knows to parse the body as JSON.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does idempotency mean, and why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A method is <strong>idempotent</strong> if making the same request multiple times has the same effect as making it once. GET, PUT, and DELETE are idempotent; <strong>POST is not</strong>. Deleting record 5 twice leaves the record deleted either way, but POSTing an order twice may create two orders.</p>
+              <p>This matters for reliability. Networks fail and clients retry, so idempotent operations can be safely retried automatically. Non-idempotent ones (like <code>POST /api/generate</code>, which spends a quota credit) need protection against duplicates — for example an idempotency key or a disabled submit button — so a flaky connection doesn't accidentally charge the user twice.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What's the difference between HTTP and HTTPS?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>HTTPS is HTTP over TLS</strong> — the same protocol, but the connection is encrypted. With plain HTTP, everything travels in cleartext, so anyone between the browser and server (on public Wi-Fi, at an ISP) can read or tamper with passwords, cookies, and page content. HTTPS encrypts the traffic and, via the server's certificate, proves the server's identity.</p>
+              <p>Today HTTPS is effectively mandatory: browsers mark HTTP pages "Not Secure," many web features (service workers, geolocation, secure cookies) only work over HTTPS, and SEO favors it. In practice you get a free certificate (e.g. Let's Encrypt) or your host/CDN provides one. Any real deployment of PrintArtZ must be HTTPS-only so session cookies can't be sniffed.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What improved from HTTP/1.1 to HTTP/2 and HTTP/3?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>HTTP/1.1</strong> uses one request at a time per connection; a slow response blocks the ones behind it (<em>head-of-line blocking</em>), so browsers open many parallel connections as a workaround.</p>
+              <p><strong>HTTP/2</strong> introduced <strong>multiplexing</strong>: many requests and responses share one connection concurrently, plus header compression and server push. This dramatically reduces overhead when a page needs dozens of assets. <strong>HTTP/3</strong> goes further by running over <strong>QUIC</strong> (built on UDP instead of TCP), which removes TCP-level head-of-line blocking and makes connection setup faster, especially on lossy or mobile networks. You rarely configure this by hand — modern hosts and CDNs negotiate the best version automatically — but knowing the progression (and <em>why</em> each version exists) is a common senior-level question.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= HTML / CSS / JS ================= -->
+        <section class="panel" data-panel="langs">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the distinct roles of HTML, CSS, and JavaScript?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The three core web languages have a clean division of labor, often described as content, presentation, and behavior:</p>
+              <ul>
+                <li><strong>HTML</strong> is the <em>structure and content</em> — headings, paragraphs, forms, images. It's the skeleton and its meaning (semantics).</li>
+                <li><strong>CSS</strong> is the <em>presentation</em> — colors, spacing, layout, typography, responsiveness. It's the styling on top of the structure.</li>
+                <li><strong>JavaScript</strong> is the <em>behavior</em> — responding to clicks, fetching data, updating the page dynamically.</li>
+              </ul>
+              <p>Keeping them separate (<em>separation of concerns</em>) makes a site easier to maintain and more accessible: a page should still be meaningful with just HTML, look right with CSS, and become interactive with JS. Frameworks like React blur these lines by co-locating them per component, but the underlying roles are the same.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the DOM?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <strong>DOM</strong> (Document Object Model) is the browser's live, in-memory <strong>tree representation</strong> of the HTML document. Each element, attribute, and piece of text becomes a node in the tree, and JavaScript can read and modify that tree through an API like <code>document.querySelector</code>, <code>element.textContent</code>, or <code>element.addEventListener</code>.</p>
+              <pre><code>const btn = document.querySelector("#generate");
+btn.addEventListener("click", () =&gt; {
+  document.querySelector("#status").textContent = "Working...";
+});</code></pre>
+              <p>The crucial point: the DOM is <em>not</em> the HTML source text — it's a live object model built from it. When JS changes the DOM, the browser re-renders to match. This is exactly what libraries like React manage for you, but under the hood everything is DOM manipulation.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is semantic HTML and why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Semantic HTML</strong> means using elements that describe their meaning rather than generic containers — <code>&lt;header&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>, <code>&lt;article&gt;</code>, <code>&lt;button&gt;</code>, <code>&lt;h1&gt;</code> instead of wrapping everything in <code>&lt;div&gt;</code> and <code>&lt;span&gt;</code>.</p>
+              <p>It matters for three reasons: <strong>accessibility</strong> (screen readers rely on semantics to let users navigate — a real <code>&lt;button&gt;</code> is focusable and keyboard-operable for free), <strong>SEO</strong> (search engines understand structure better), and <strong>maintainability</strong> (the markup documents itself). A common interview red flag is a "div soup" of clickable divs; using the right element is almost always the better answer.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does the CSS box model work?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Every element is a rectangular box made of four concentric layers, from inside out: <strong>content</strong> (the text/image), <strong>padding</strong> (space inside the border), <strong>border</strong>, and <strong>margin</strong> (space outside the border, separating it from neighbors).</p>
+              <p>The catch that trips people up is <em>which</em> parts count toward a declared <code>width</code>. With the default <code>box-sizing: content-box</code>, <code>width</code> is only the content, so padding and border are <em>added</em> on top, making the element wider than you asked. Most codebases set <code>box-sizing: border-box</code>, which makes <code>width</code> include padding and border — far more intuitive.</p>
+              <pre><code>* { box-sizing: border-box; }
+/* now width: 200px is the full visible width */</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does CSS specificity decide which rule wins?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>When multiple rules target the same element, CSS resolves the conflict by <strong>specificity</strong> — a weighting of how targeted the selector is. Roughly, from weakest to strongest: element/tag selectors (<code>p</code>) &lt; class/attribute/pseudo-class selectors (<code>.btn</code>, <code>:hover</code>) &lt; ID selectors (<code>#main</code>) &lt; inline <code>style=""</code>. A higher-specificity rule beats a lower one regardless of order.</p>
+              <p>If two rules have <em>equal</em> specificity, the one declared <strong>later</strong> wins (the cascade). <code>!important</code> overrides normal specificity entirely and is best avoided because it starts an escalation war. The practical takeaway: prefer low, consistent specificity (mostly classes) so styles stay predictable and easy to override.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the difference between synchronous and asynchronous JavaScript?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>JavaScript runs on a <strong>single thread</strong>, so it can only do one thing at a time. <strong>Synchronous</strong> code runs line by line, each statement blocking the next until it finishes. If a slow operation ran synchronously — like waiting for a network request — the entire page would freeze, unable to respond to clicks.</p>
+              <p><strong>Asynchronous</strong> code avoids that. Operations like network requests or timers are started and then handed off; JavaScript continues running, and a callback (or a Promise's <code>.then</code>/<code>await</code>) runs later when the result is ready. This is why fetching from PrintArtZ's API doesn't freeze the UI:</p>
+              <pre><code>console.log("1: before");
+const res = await fetch("/api/gallery"); // pauses this function, not the page
+console.log("3: after data");
+// meanwhile the UI stayed responsive</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does the event loop work at a high level?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <strong>event loop</strong> is what lets single-threaded JavaScript handle asynchronous work without blocking. Synchronous code runs on the <strong>call stack</strong>. When you start an async operation (a timer, a fetch), the browser handles it in the background; when it completes, its callback is placed in a <strong>queue</strong>.</p>
+              <p>The event loop's job is simple: whenever the call stack is empty, take the next queued callback and run it. There are two queues with priority — the <strong>microtask queue</strong> (Promise callbacks) is drained fully before the next <strong>macrotask</strong> (like <code>setTimeout</code>). That's why a resolved Promise's <code>.then</code> runs before a <code>setTimeout(…, 0)</code> scheduled earlier:</p>
+              <pre><code>console.log("A");
+setTimeout(() =&gt; console.log("D"), 0);   // macrotask
+Promise.resolve().then(() =&gt; console.log("C")); // microtask
+console.log("B");
+// order: A, B, C, D</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is responsive design and how do media queries help?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Responsive design</strong> is building one layout that adapts to any screen size — phone, tablet, desktop — rather than shipping separate sites. It relies on fluid units (percentages, <code>rem</code>, <code>fr</code>, <code>vw</code>), flexible layouts (Flexbox and Grid), and <strong>media queries</strong> that apply different CSS at different breakpoints.</p>
+              <pre><code>.grid { grid-template-columns: 1fr; }
+@media (min-width: 720px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+}</code></pre>
+              <p>A common best practice is <strong>mobile-first</strong>: write the base styles for small screens, then use <code>min-width</code> media queries to enhance for larger ones. You also need <code>&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;</code> in the HTML so mobile browsers don't pretend to be desktop-width — which is exactly why this study guide includes that tag.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= APIS & DATA ================= -->
+        <section class="panel" data-panel="apis">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is an API, and what is a REST API specifically?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>API</strong> (Application Programming Interface) is a defined contract that lets one program talk to another without knowing its internals. A web API is the set of endpoints a server exposes for clients to call. It's the "menu" of operations the client can request.</p>
+              <p>A <strong>REST API</strong> is a popular style for web APIs. Its core ideas: everything is a <strong>resource</strong> identified by a URL (<code>/api/artworks/42</code>), you act on resources using <strong>HTTP methods</strong> (GET to read, POST to create, etc.), it's <strong>stateless</strong> (each request carries everything it needs), and it typically exchanges <strong>JSON</strong>. So <code>GET /api/artworks</code> lists artworks and <code>POST /api/artworks</code> creates one — the URL names the thing, the method names the action.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is JSON and why is it the default for web APIs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>JSON</strong> (JavaScript Object Notation) is a lightweight, text-based format for structured data. It supports objects, arrays, strings, numbers, booleans, and null — enough to represent almost any data — and it's human-readable.</p>
+              <pre><code>{
+  "id": 42,
+  "title": "Neon City",
+  "public": true,
+  "tags": ["cyberpunk", "night"]
+}</code></pre>
+              <p>It won because it's simple, compact, and maps directly onto data structures in nearly every language (in JS, <code>JSON.parse</code> and <code>JSON.stringify</code> convert to and from objects). Being sent as <code>Content-Type: application/json</code>, it replaced the heavier, more verbose XML for most APIs. PrintArtZ's endpoints send and receive JSON.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you make a request from the browser with fetch?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>fetch</code> is the built-in browser API for making HTTP requests from JavaScript (the modern replacement for the old <code>XMLHttpRequest</code>, the "AJAX" object). It returns a Promise, so you use <code>await</code> or <code>.then</code>. A POST that sends JSON and reads JSON back looks like this:</p>
+              <pre><code>const res = await fetch("/api/generate", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt: "a fox in autumn" }),
+});
+if (!res.ok) throw new Error("Request failed: " + res.status);
+const data = await res.json();
+console.log(data.imageUrl);</code></pre>
+              <p>Note two gotchas interviewers like: you must <code>JSON.stringify</code> the body yourself and set <code>Content-Type</code>, and <code>fetch</code> only rejects on network failure — an HTTP <code>404</code> or <code>500</code> still resolves, so you must check <code>res.ok</code> or <code>res.status</code> yourself.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Query params vs path params vs request body — when do you use each?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>There are three places to put data in a request, each with a purpose:</p>
+              <ul>
+                <li><strong>Path params</strong> identify <em>which</em> resource — they're part of the URL structure: <code>GET /api/artworks/42</code> (artwork 42).</li>
+                <li><strong>Query params</strong> refine or filter a request — appended after <code>?</code>: <code>GET /api/artworks?style=anime&amp;page=2&amp;sort=newest</code>. They're ideal for optional filtering, sorting, searching, and pagination.</li>
+                <li><strong>Request body</strong> carries the payload for create/update operations (POST/PUT/PATCH) — usually a JSON object, as in the generate prompt above.</li>
+              </ul>
+              <p>Rule of thumb: path = identity, query = options/filters on a GET, body = the substantive data you're sending. You wouldn't put a large prompt in a query string (length limits, it appears in logs); you wouldn't put a filter in the body of a GET.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is AJAX, and how does it relate to fetch?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>AJAX</strong> (Asynchronous JavaScript And XML) is the technique of requesting data from the server <em>in the background</em> and updating part of the page without a full reload. It's what made web apps feel like apps instead of a series of full-page navigations. The name is historical — the "XML" part is now almost always JSON.</p>
+              <p>The original AJAX API was <code>XMLHttpRequest</code>; today <code>fetch</code> is the modern, Promise-based way to do the same thing. So "using fetch to load data and update the DOM" <em>is</em> AJAX. In PrintArtZ, clicking Generate fires an async request and the page updates in place with the result — a textbook AJAX flow.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How should an API handle errors, and how should a client react?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A well-designed API signals outcomes primarily through <strong>status codes</strong>, and includes a machine-readable error body for detail. Return the right code for the situation — <code>400</code> for invalid input, <code>401</code>/<code>403</code> for auth problems, <code>404</code> for missing resources, <code>429</code> when rate-limited, <code>5xx</code> for server failures — and a consistent JSON shape:</p>
+              <pre><code>HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+{ "error": "quota_exceeded", "message": "Daily limit reached", "retryAfter": 3600 }</code></pre>
+              <p>The client should branch on the status: show a validation message for <code>400</code>, redirect to login on <code>401</code>, show "try again later" on <code>429</code>/<code>5xx</code>, and never assume success. Meaningful codes plus a structured body let the UI respond precisely instead of showing one generic "something went wrong."</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= BROWSER & STATE ================= -->
+        <section class="panel" data-panel="browser">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Since HTTP is stateless, how does a site remember I'm logged in?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Because HTTP forgets everything between requests, the server needs the client to <strong>re-send a proof of identity</strong> on each request. The classic mechanism is a <strong>cookie</strong>. On login, the server responds with <code>Set-Cookie: session=abc123</code>; the browser stores it and automatically attaches <code>Cookie: session=abc123</code> to every subsequent request to that site.</p>
+              <p>The server looks up that session id to know who you are and whether you're still authenticated. This is exactly how PrintArtZ keeps you signed in — the session cookie rides along on the request to <code>/api/generate</code>, so the server can check your identity and remaining quota without you re-entering your password each time.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Compare cookies, localStorage, and sessionStorage.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>All three store data in the browser, but they differ in lifetime, size, and whether they're sent to the server:</p>
+              <div class="vs">
+                <div><h4>Cookies</h4><p class="muted">Small (~4KB). <strong>Automatically sent to the server</strong> on every matching request. Have expiry, and security flags (<code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code>). Ideal for session/auth tokens.</p></div>
+                <div><h4>localStorage / sessionStorage</h4><p class="muted">Larger (~5–10MB). <strong>Never sent to the server</strong> automatically — JS reads them explicitly. <code>localStorage</code> persists until cleared; <code>sessionStorage</code> is wiped when the tab closes. Good for UI preferences and drafts.</p></div>
+              </div>
+              <p>The key interview point: use <strong>cookies for auth</strong> (especially <code>HttpOnly</code> so JavaScript can't read them, defending against XSS token theft), and <strong>Web Storage for non-sensitive client-only state</strong>. Never store a secret token in <code>localStorage</code> if an <code>HttpOnly</code> cookie is an option.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the same-origin policy?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The <strong>same-origin policy</strong> is a fundamental browser security rule: scripts on one <strong>origin</strong> can't freely read data from a different origin. An <strong>origin</strong> is the combination of <strong>scheme + host + port</strong> — so <code>https://printartz.com</code> and <code>https://api.other.com</code> are different origins, and so is <code>http://</code> vs <code>https://</code> of the same host.</p>
+              <p>Without this policy, a malicious site you visit could use your logged-in cookies to silently read your email or bank data from other tabs. The policy isolates origins so a page can only script its own origin's data. It's the backdrop for CORS — which exists precisely to let servers <em>opt in</em> to safe cross-origin sharing.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is CORS and why does it exist?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>CORS</strong> (Cross-Origin Resource Sharing) is the controlled exception to the same-origin policy. By default, browser JavaScript on origin A is blocked from reading responses from origin B. CORS lets server B <strong>explicitly allow</strong> specific other origins by sending response headers like <code>Access-Control-Allow-Origin: https://printartz.com</code>.</p>
+              <p>A crucial nuance: CORS is enforced by the <strong>browser</strong>, not the server, and it protects the <em>user</em>, not the data — the request often still reaches the server, but the browser withholds the response from the page if the headers don't permit it. For non-simple requests (e.g. a POST with JSON and custom headers), the browser first sends a <strong>preflight</strong> <code>OPTIONS</code> request to check permission. Because PrintArtZ's frontend and API share an origin, it avoids CORS entirely — a common reason to keep the API under the same domain.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does browser caching work with Cache-Control and ETags?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Caching avoids re-downloading things that haven't changed. The server drives it with response headers. <strong>Cache-Control</strong> sets the policy: <code>max-age=31536000, immutable</code> tells the browser to reuse an asset for a year without asking, while <code>no-store</code> forbids caching (right for personalized API responses).</p>
+              <p>For validation, the server can send an <strong>ETag</strong> (a fingerprint of the content). On the next request the browser sends <code>If-None-Match: &lt;etag&gt;</code>; if nothing changed the server replies <code>304 Not Modified</code> with no body, saving bandwidth. The standard production pattern is <strong>hashed filenames</strong> for static assets (<code>app.9f2c.js</code>) cached forever — when content changes, the filename changes, so there's never a stale-cache problem. Personalized pages, by contrast, use <code>no-store</code> so one user never sees another's data.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are the security flags on a cookie (HttpOnly, Secure, SameSite)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A session cookie should be hardened with three flags:</p>
+              <ul>
+                <li><strong>HttpOnly</strong> — the cookie is invisible to JavaScript (<code>document.cookie</code> can't read it), so an XSS injection can't steal the session token.</li>
+                <li><strong>Secure</strong> — the cookie is only sent over HTTPS, never plain HTTP, so it can't be sniffed in transit.</li>
+                <li><strong>SameSite</strong> — controls whether the cookie is sent on cross-site requests. <code>Lax</code> or <code>Strict</code> largely neutralizes CSRF attacks by not attaching the cookie to requests initiated from other sites.</li>
+              </ul>
+              <pre><code>Set-Cookie: session=abc123; HttpOnly; Secure; SameSite=Lax; Max-Age=1209600</code></pre>
+              <p>Together these defend against the two classic session attacks — token theft via XSS and forged requests via CSRF — which is why PrintArtZ's login cookie should set all three.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= COMPARISONS ================= -->
+        <section class="panel" data-panel="compare">
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>REST vs GraphQL?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>REST</h4><p class="muted">Multiple endpoints, one per resource; the server defines the response shape. Simple, cacheable via HTTP, ubiquitous. Can lead to over-fetching (too much data) or under-fetching (needing several round-trips).</p></div>
+                <div><h4>GraphQL</h4><p class="muted">A single endpoint where the client asks for <em>exactly</em> the fields it needs in one query. Great for complex, nested data and varied clients. Costs more setup, and HTTP caching is trickier because it's typically one POST.</p></div>
+              </div>
+              <p>Rule of thumb: REST is the pragmatic default and fits PrintArtZ's handful of clear endpoints well; GraphQL shines when many different clients need many different slices of a deeply related data graph and round-trips are a real cost.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>SPA vs MPA?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>SPA (Single-Page App)</h4><p class="muted">The server sends one shell; JavaScript renders views and swaps them client-side via fetch. Fast, app-like in-page navigation after load, but a heavier initial JS download and extra care needed for SEO and first paint.</p></div>
+                <div><h4>MPA (Multi-Page App)</h4><p class="muted">Each navigation loads a fresh HTML page from the server. Simple, great SEO and first paint, less JS — but full reloads feel less fluid and share less state across pages.</p></div>
+              </div>
+              <p>Modern frameworks like Next.js blur the line: they server-render each page (MPA-like first paint and SEO) then hydrate into an SPA-like experience for subsequent navigation — giving you both benefits, which is the model PrintArtZ follows.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Cookies vs tokens (JWT) for authentication?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Session cookies</h4><p class="muted">The server stores session state and gives the browser an opaque id in an <code>HttpOnly</code> cookie, sent automatically. Easy to revoke (delete server-side), well-protected from XSS, but requires server/session storage and needs CSRF defenses.</p></div>
+                <div><h4>Tokens (JWT)</h4><p class="muted">A signed, self-contained token the client stores and sends in an <code>Authorization: Bearer</code> header. Stateless and great across services/APIs and mobile, but hard to revoke before expiry, and risky if stored where JS (and thus XSS) can read it.</p></div>
+              </div>
+              <p>A common, balanced choice for a web app like PrintArtZ is session-style auth via a hardened <code>HttpOnly</code> cookie; token-in-header auth is more natural for public APIs, mobile clients, and service-to-service calls. This is a pointer, not the whole story — see the dedicated security/auth material for depth.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Server-side rendering vs client-side rendering — which and why?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Server-side rendering (SSR)</h4><p class="muted">Server sends fully-formed HTML per request. Fast first paint, strong SEO, works before JS loads. Costs server work each request and a hydration step to become interactive.</p></div>
+                <div><h4>Client-side rendering (CSR)</h4><p class="muted">Server sends a near-empty shell; the browser fetches data and builds the DOM with JS. Cheap, snappy in-app navigation, but slower first paint and weaker SEO on its own.</p></div>
+              </div>
+              <p>The trade-off comes down to who does the work and when. Content that needs SEO and a quick first paint (landing pages, galleries) favors SSR; highly interactive, authenticated dashboards can lean CSR. PrintArtZ's user-specific pages are server-rendered on demand because they depend on the logged-in user and database, then hydrate for interactivity.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · Web Fundamentals study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

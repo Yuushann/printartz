@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ORMs &amp; Prisma — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / ORMs &amp; Prisma</div>
+      <h1><span class="g">ORMs &amp; Prisma</span> — interview study guide</h1>
+      <p class="lead">
+        Prisma is the ORM PrintArtZ uses to talk to its PostgreSQL database (hosted on
+        Supabase). This guide goes from what an ORM even is, up to the N+1 problem,
+        connection pooling, and Prisma's engine-free driver-adapter architecture — in
+        interview Q&amp;A form with real schema, client, and SQL code. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">ORM Basics</button>
+          <button class="tab" data-tab="prisma">Prisma Basics</button>
+          <button class="tab" data-tab="relations">Relations &amp; Queries</button>
+          <button class="tab" data-tab="migrations">Migrations &amp; Data</button>
+          <button class="tab" data-tab="advanced">Advanced &amp; Why</button>
+        </div>
+
+        <!-- ================= ORM BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is an ORM and what problem does it solve?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>ORM stands for <strong>Object-Relational Mapping</strong>. It's a layer that lets you work with your relational database using the objects and types of your programming language instead of writing raw SQL strings. A row in a table becomes an object; a table becomes a class or model; a column becomes a property.</p>
+              <p>The core problem it solves is the <strong>“object-relational impedance mismatch”</strong>: your code thinks in terms of objects, references, and inheritance, while the database thinks in terms of tables, rows, and foreign keys. Without an ORM you spend a lot of code hand-writing SQL, then manually mapping the flat result rows back into nested objects and back again on save.</p>
+              <p>With an ORM you write something like <code>db.user.findMany()</code> and get back typed <code>User</code> objects. It handles building the SQL, sending it over the connection, and turning the result set into language-native values. In PrintArtZ, Prisma is the ORM that maps our PostgreSQL tables (<code>User</code>, <code>ProjectRequest</code>, <code>GenerationJob</code>) to typed TypeScript objects.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How does an ORM map tables to objects in practice?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The mapping is a set of consistent conventions. A <strong>table</strong> maps to a <strong>model/class</strong>, a <strong>row</strong> maps to an <strong>instance/object</strong>, a <strong>column</strong> maps to a <strong>field/property</strong>, and a <strong>foreign-key relationship</strong> maps to a <strong>reference or collection</strong> on the object (e.g. a user “has many” project requests).</p>
+              <pre><code>-- database (PostgreSQL)
+CREATE TABLE "User" (
+  id    TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL
+);
+
+// application (TypeScript, via Prisma)
+const user = await prisma.user.findUnique({ where: { id } });
+user.email; // typed string, mapped from the email column</code></pre>
+              <p>Instead of reading <code>row["email"]</code> from an untyped result set and hoping the column exists, you get <code>user.email</code> as a first-class typed property. The ORM owns the translation in both directions: reading rows into objects, and writing objects back into <code>INSERT</code>/<code>UPDATE</code> statements.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Why use an ORM instead of writing raw SQL?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The biggest wins are <strong>productivity and safety</strong>. You write less boilerplate — no manual result mapping, no string concatenation to build queries. With a typed ORM like Prisma you also get <strong>compile-time type safety and autocomplete</strong>: if you rename a column in the schema, TypeScript flags every query that used the old name before you ever run the code.</p>
+              <p>ORMs also give you <strong>protection against SQL injection</strong> by default, because values are sent as parameters rather than spliced into the query string. And they smooth over some <strong>database portability</strong> — the same query code can target Postgres or MySQL with minimal changes.</p>
+              <p>The honest counterpoint an interviewer wants to hear: ORMs add an abstraction layer that can hide what SQL is actually running, can generate inefficient queries if used naively (the N+1 problem), and make very complex analytical queries awkward. The mature position is “ORM for the 95% of ordinary CRUD, drop to raw SQL for the tricky 5%.”</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is the object-relational impedance mismatch?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>It's the fundamental friction between two different data models. <strong>Object-oriented code</strong> represents data as objects that can be nested, hold references to other objects, and use inheritance. <strong>Relational databases</strong> store data as flat rows in normalized tables, linked only by foreign keys, with no notion of nesting or inheritance.</p>
+              <p>Concrete examples of the mismatch: a many-to-many relationship in objects is just two lists pointing at each other, but in SQL it needs a separate join table. An object graph can be deeply nested, but a query returns a flat, possibly duplicated result set that must be “re-hydrated” into that graph. Inheritance has no direct SQL equivalent, so it must be faked (single-table, joined-table, etc.).</p>
+              <p>An ORM's whole job is to absorb this friction so you can mostly think in objects. Understanding that the mismatch never fully disappears — it's just managed — is what separates using an ORM well from using it blindly.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>ORM vs raw SQL — what are the trade-offs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>ORM</h4><p class="muted">Fast to write, type-safe, autocompletion, injection-safe by default, portable across databases, easy CRUD. Can hide the real SQL, risks N+1 and over-fetching, weaker for complex analytics, adds a dependency and learning curve.</p></div>
+                <div><h4>Raw SQL</h4><p class="muted">Total control and maximum performance, expresses any query the database supports, no abstraction to fight. But it's verbose, error-prone, needs manual result mapping, and requires discipline to parameterize against injection.</p></div>
+              </div>
+              <p>These aren't mutually exclusive. In PrintArtZ we use Prisma for day-to-day CRUD and reach for <code>prisma.$queryRaw</code> only when a query is genuinely awkward in the query API — a common, pragmatic pattern in real codebases.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>Active Record vs Data Mapper — which pattern does Prisma use?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are the two classic ORM design patterns. In <strong>Active Record</strong> (Rails, Laravel Eloquent), the model object <em>is</em> the row and carries its own persistence methods — you call <code>user.save()</code> on the object itself. It's convenient but couples your domain objects tightly to the database.</p>
+              <p>In <strong>Data Mapper</strong> (Java's Hibernate, TypeORM's repository mode), a separate mapper/repository handles persistence, keeping the domain objects ignorant of the database — <code>repository.save(user)</code>. It's more decoupled and testable but more ceremony.</p>
+              <p>Prisma doesn't fit neatly into either. It uses a generated <strong>query builder / client</strong> where you call methods on a central client object, e.g. <code>prisma.user.create(...)</code>, and the results are plain typed JavaScript objects with no attached methods. This “results are just data” approach avoids the surprises of objects that secretly hit the database when you touch a property.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= PRISMA BASICS ================= -->
+        <section class="panel" data-panel="prisma">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is Prisma and what are its main parts?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma is a modern, TypeScript-first ORM (technically a “next-generation ORM”) for Node.js. It has three main pieces you'll mention in an interview: <strong>Prisma Schema</strong> — a single declarative file that defines your data models; <strong>Prisma Client</strong> — an auto-generated, fully type-safe query builder; and <strong>Prisma Migrate</strong> — a migration system that turns schema changes into SQL migration files.</p>
+              <p>The workflow is: you edit <code>schema.prisma</code>, run <code>prisma generate</code> to (re)build the client, and run <code>prisma migrate</code> to sync the database. PrintArtZ uses Prisma against a PostgreSQL database hosted on Supabase, with models for <code>User</code>, <code>ProjectRequest</code>, and <code>GenerationJob</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What does the schema.prisma file look like?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The schema is the single source of truth. It has three kinds of blocks: a <code>datasource</code> (which database and its connection URL), a <code>generator</code> (what to generate — usually the client), and one or more <code>model</code> blocks (your tables).</p>
+              <pre><code>datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  requests  ProjectRequest[]
+}</code></pre>
+              <p>Note the schema is <strong>database-agnostic in shape but provider-aware</strong>: attributes like <code>@id</code>, <code>@unique</code>, and <code>@default(now())</code> compile down to the right SQL constraints for Postgres. This one file drives both the generated client's types and the migrations.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What does a Prisma model look like, and how do fields map to columns?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Each <code>model</code> maps to a table; each line inside is a field. A field has a name, a type, optional modifiers (<code>?</code> for nullable, <code>[]</code> for a list/relation), and attributes prefixed with <code>@</code>. Here are two real PrintArtZ models:</p>
+              <pre><code>model ProjectRequest {
+  id        String   @id @default(cuid())
+  prompt    String
+  status    String   @default("pending")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  job       GenerationJob?
+  createdAt DateTime @default(now())
+}
+
+model GenerationJob {
+  id         String         @id @default(cuid())
+  requestId  String         @unique
+  request    ProjectRequest @relation(fields: [requestId], references: [id])
+  imageUrl   String?
+  finishedAt DateTime?
+}</code></pre>
+              <p><code>String</code>/<code>DateTime</code>/<code>Boolean</code>/<code>Int</code> are scalar fields that become columns. Fields typed as another model (<code>user</code>, <code>request</code>) are <strong>relation fields</strong> — they don't create their own column; the <code>@relation</code> attribute points at the actual foreign-key column (<code>userId</code>). A <code>?</code> makes it nullable/optional (a not-yet-finished job has no <code>finishedAt</code>).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What does `prisma generate` do, and why is the client “typed”?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>prisma generate</code> reads your <code>schema.prisma</code> and generates the <strong>Prisma Client</strong> — actual TypeScript/JavaScript code tailored to your exact models. This is the key idea: the client isn't a generic library, it's <strong>code generated from your schema</strong>, so it knows your models, fields, and relations by name.</p>
+              <pre><code>import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+// autocompletes .user, .projectRequest, .generationJob
+// and knows every field's type
+const u = await prisma.user.findUnique({ where: { email } });</code></pre>
+              <p>Because the types come from the schema, TypeScript catches mistakes at compile time — a typo'd field, a wrong <code>where</code> key, or forgetting a required field on <code>create</code> all fail the build. You must re-run <code>generate</code> whenever the schema changes (the migration commands do it for you), which is why it's wired into most projects' <code>postinstall</code> script.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you do basic CRUD with Prisma Client?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma exposes a consistent set of methods per model. The most common are <code>findMany</code>, <code>findUnique</code>, <code>create</code>, <code>update</code>, and <code>delete</code>:</p>
+              <pre><code>// CREATE
+const req = await prisma.projectRequest.create({
+  data: { prompt: "A neon cat poster", userId: user.id },
+});
+
+// READ
+const one  = await prisma.projectRequest.findUnique({ where: { id } });
+const many = await prisma.projectRequest.findMany({
+  where: { status: "pending" },
+});
+
+// UPDATE
+await prisma.projectRequest.update({
+  where: { id }, data: { status: "processing" },
+});
+
+// DELETE
+await prisma.projectRequest.delete({ where: { id } });</code></pre>
+              <p>Every method takes a single options object (<code>where</code>, <code>data</code>, <code>select</code>, <code>include</code>, etc.) and returns a typed result. There are also convenience methods like <code>upsert</code> (update or create), <code>createMany</code>, <code>updateMany</code>, and <code>count</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why should you use a single PrismaClient instance (the singleton pattern)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Each <code>new PrismaClient()</code> opens its own connection pool to the database. If you create a client per request — or, in Next.js dev mode, if hot-reloading re-imports your module repeatedly — you can quickly exhaust the database's connection limit and see “too many connections” errors.</p>
+              <pre><code>// lib/prisma.ts — one shared instance
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+};
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production")
+  globalForPrisma.prisma = prisma;</code></pre>
+              <p>The pattern caches the instance on <code>globalThis</code> in development so hot reloads reuse it, while production gets a single module-level instance. PrintArtZ imports this shared <code>prisma</code> everywhere rather than instantiating new clients — a classic Next.js + Prisma gotcha interviewers like to probe.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= RELATIONS & QUERIES ================= -->
+        <section class="panel" data-panel="relations">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>How do you model a one-to-many relationship in Prisma?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A one-to-many relation (one <code>User</code> has many <code>ProjectRequest</code>s) is expressed by putting a list field on the “one” side and a relation field plus a foreign-key scalar on the “many” side. Prisma uses the two together to know how the tables connect.</p>
+              <pre><code>model User {
+  id       String           @id @default(cuid())
+  requests ProjectRequest[]          // the "many" side
+}
+
+model ProjectRequest {
+  id     String @id @default(cuid())
+  userId String                       // FK column
+  user   User   @relation(fields: [userId], references: [id])
+}</code></pre>
+              <p>Only the “many” side (<code>ProjectRequest</code>) gets an actual <code>userId</code> column in the database — that's where the foreign key lives. The <code>requests</code> field on <code>User</code> is “virtual”: it doesn't add a column, it just tells Prisma how to fetch the related rows when you ask for them.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you model a many-to-many relationship?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma supports two styles. The <strong>implicit</strong> style: put a list of each model on the other, and Prisma silently creates and manages the join table for you.</p>
+              <pre><code>model Post { id String @id; tags Tag[] }
+model Tag  { id String @id; posts Post[] }
+// Prisma manages a hidden "_PostToTag" join table</code></pre>
+              <p>The <strong>explicit</strong> style: you define the join table yourself as its own model. You need this when the relationship itself carries data (e.g. <code>addedAt</code>, a role, an ordering), which is common in real schemas.</p>
+              <pre><code>model PostTag {
+  postId String
+  tagId  String
+  post   Post @relation(fields: [postId], references: [id])
+  tag    Tag  @relation(fields: [tagId], references: [id])
+  @@id([postId, tagId])   // composite primary key
+}</code></pre>
+              <p>Under the hood a many-to-many is always a join table with two foreign keys — implicit just hides the bookkeeping. Interviewers like to hear you know both and when explicit is required.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What's the difference between `include` and `select`?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Both shape what a query returns, but they work oppositely. <code>include</code> keeps <strong>all</strong> scalar fields of the model and <em>adds</em> related records on top. <code>select</code> is exclusive — it returns <strong>only</strong> the fields you list, and nothing else.</p>
+              <pre><code>// include: full ProjectRequest PLUS its related job
+const withJob = await prisma.projectRequest.findUnique({
+  where: { id },
+  include: { job: true },
+});
+
+// select: ONLY these two fields, nothing more
+const slim = await prisma.projectRequest.findUnique({
+  where: { id },
+  select: { id: true, status: true },
+});</code></pre>
+              <p>You can't use <code>include</code> and <code>select</code> at the top level of the same query. To fetch relations while also narrowing fields, nest a <code>select</code> inside — e.g. <code>select: &#123; id: true, job: &#123; select: &#123; imageUrl: true &#125; &#125; &#125;</code>. Preferring <code>select</code> to fetch only what you need is a simple, effective way to avoid over-fetching.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you filter and sort queries in Prisma?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Filtering goes in the <code>where</code> object, which supports rich operators. Sorting uses <code>orderBy</code>. Prisma translates these into the equivalent SQL <code>WHERE</code> and <code>ORDER BY</code> clauses.</p>
+              <pre><code>const results = await prisma.projectRequest.findMany({
+  where: {
+    status: { in: ["pending", "processing"] },
+    prompt: { contains: "poster", mode: "insensitive" },
+    createdAt: { gte: new Date("2026-01-01") },
+    user: { email: { endsWith: "@infoblox.com" } }, // filter on relation
+  },
+  orderBy: { createdAt: "desc" },
+});</code></pre>
+              <p>Operators include <code>equals</code>, <code>not</code>, <code>in</code>, <code>lt</code>/<code>lte</code>/<code>gt</code>/<code>gte</code>, <code>contains</code>/<code>startsWith</code>/<code>endsWith</code>, and boolean combinators <code>AND</code>/<code>OR</code>/<code>NOT</code>. You can even filter a model by conditions on its <strong>related</strong> records, as with the nested <code>user</code> filter above.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you paginate results?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma offers two pagination styles. <strong>Offset pagination</strong> uses <code>skip</code> + <code>take</code> — simple and lets you jump to any page, but gets slow on large tables (the database still scans the skipped rows) and can show duplicates/gaps if data changes between pages.</p>
+              <pre><code>// Offset — page 3, 20 per page
+const page = await prisma.projectRequest.findMany({
+  skip: 40, take: 20, orderBy: { createdAt: "desc" },
+});</code></pre>
+              <p><strong>Cursor pagination</strong> uses a stable field (usually the id) to say “give me the next N after this row.” It stays fast at any depth and is stable under inserts, which is why it's preferred for infinite scroll and large datasets.</p>
+              <pre><code>// Cursor — next 20 after the last id seen
+const next = await prisma.projectRequest.findMany({
+  take: 20,
+  skip: 1,                    // skip the cursor row itself
+  cursor: { id: lastSeenId },
+  orderBy: { id: "asc" },
+});</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does Prisma fetch relations — one query or several?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>This is a subtle but important point. When you use <code>include</code>, Prisma historically did <strong>not</strong> emit a single big SQL <code>JOIN</code>; instead it ran separate queries (one for the parent rows, one per included relation) and stitched the results together in memory. This avoids the row-duplication and data-transfer blow-up that large joins cause with one-to-many relations.</p>
+              <p>More recent Prisma versions add a <strong>relation join strategy</strong> on PostgreSQL — you can opt in with <code>relationLoadStrategy: "join"</code> to have it use a single query with lateral joins and JSON aggregation, or keep <code>"query"</code> (the multi-query default). Crucially, either way it's a <strong>fixed, small number of queries</strong>, not one query per parent row — so <code>include</code> does not itself cause an N+1 problem. The N+1 trap comes from looping and querying inside the loop, which we cover in the Advanced tab.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are nested writes and why are they useful?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma lets you create or connect related records in a single <code>create</code>/<code>update</code> call by nesting <code>create</code>, <code>connect</code>, <code>connectOrCreate</code>, etc. inside <code>data</code>. The whole nested write runs in one implicit transaction, so it's atomic.</p>
+              <pre><code>// Create a request AND its generation job together
+const req = await prisma.projectRequest.create({
+  data: {
+    prompt: "Retro travel poster of Mars",
+    user: { connect: { id: user.id } },   // link existing user
+    job:  { create: { requestId: "" } },  // create related job
+  },
+  include: { job: true },
+});</code></pre>
+              <p><code>connect</code> links to an existing row via a unique field, <code>create</code> makes a new related row, and <code>connectOrCreate</code> does whichever applies. This replaces what would otherwise be several separate inserts plus manual foreign-key wiring — and because it's atomic, you never end up with a request whose job failed to save.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= MIGRATIONS & DATA ================= -->
+        <section class="panel" data-panel="migrations">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a database migration and why do we need them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A migration is a versioned, ordered change to your database schema — a SQL script that transforms the database from one state to the next (add a table, add a column, change a type, add an index). Migrations are the database equivalent of source-controlled code changes.</p>
+              <p>We need them because a schema evolves over time and must change <strong>consistently</strong> across every environment — your laptop, CI, staging, and production — and across every teammate's machine. Committing migration files to git gives you a reproducible history: anyone can rebuild the exact schema by replaying the migrations in order, and you have a record of what changed, when, and why.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>`prisma migrate` vs `prisma db push` — when to use each?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>prisma migrate dev</h4><p class="muted">Diffs the schema, generates a named SQL migration file, applies it, and records it in the <code>_prisma_migrations</code> history table. Keeps a reviewable, replayable audit trail. The right tool for anything shared or heading to production.</p></div>
+                <div><h4>prisma db push</h4><p class="muted">Directly pushes the schema state into the database with <strong>no</strong> migration file and no history. Fast for prototyping and throwaway/dev databases, but you lose the audit trail and can't cleanly reproduce the change elsewhere.</p></div>
+              </div>
+              <p>Rule of thumb: use <code>db push</code> while rapidly iterating on a schema alone, and switch to <code>migrate dev</code> once the schema stabilizes and the change needs to reach teammates or production. In production you run the pre-generated migrations with <code>prisma migrate deploy</code>, which applies pending migrations without trying to generate new ones.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does Prisma track migration history?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Prisma keeps two things in sync. On disk, each migration is a folder under <code>prisma/migrations/</code> containing a timestamped name and a <code>migration.sql</code> file — these are committed to git. In the database, a special table called <code>_prisma_migrations</code> records which migrations have already been applied (name, checksum, timestamp).</p>
+              <pre><code>prisma/
+  schema.prisma
+  migrations/
+    20260110090000_init/
+      migration.sql
+    20260212143000_add_generation_job/
+      migration.sql</code></pre>
+              <p>When you run <code>migrate deploy</code>, Prisma compares the folders against the <code>_prisma_migrations</code> table and applies only the ones not yet recorded, in order. The checksum lets it detect if a migration file was edited after being applied — a “drift” it will warn you about, because editing already-applied migrations breaks reproducibility.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is database seeding and how do you do it in Prisma?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Seeding is populating the database with an initial, known set of data — reference data (categories, roles), a demo admin user, or realistic sample rows for local development and tests. It makes fresh environments usable immediately and gives tests a predictable starting state.</p>
+              <pre><code>// prisma/seed.ts
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+async function main() {
+  await prisma.user.upsert({
+    where: { email: "demo@printartz.app" },
+    update: {},
+    create: { email: "demo@printartz.app" },
+  });
+}
+main().finally(() =&gt; prisma.$disconnect());</code></pre>
+              <p>You point Prisma at the script via a <code>prisma.seed</code> entry in <code>package.json</code>, then run <code>prisma db seed</code> (it also runs automatically after <code>migrate reset</code>). Using <code>upsert</code> keyed on a unique field makes seeds <strong>idempotent</strong> — re-running them doesn't create duplicates.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a transaction and how does `$transaction` work in Prisma?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A transaction groups several database operations so they <strong>all succeed or all fail together</strong> (the “A” — atomicity — in ACID). If any step throws, everything rolls back, so you never leave the data half-updated. Prisma offers two forms of <code>$transaction</code>.</p>
+              <p>The <strong>array form</strong> runs a fixed batch of independent operations atomically:</p>
+              <pre><code>const [job, updated] = await prisma.$transaction([
+  prisma.generationJob.create({ data: { requestId: id, imageUrl } }),
+  prisma.projectRequest.update({
+    where: { id }, data: { status: "done" },
+  }),
+]);</code></pre>
+              <p>The <strong>interactive form</strong> takes a callback and lets you run logic — reads, branching, then writes — inside one transaction, which you need when a later write depends on an earlier read:</p>
+              <pre><code>await prisma.$transaction(async (tx) =&gt; {
+  const req = await tx.projectRequest.findUnique({ where: { id } });
+  if (req?.status !== "pending") throw new Error("already taken");
+  await tx.projectRequest.update({
+    where: { id }, data: { status: "processing" },
+  });
+});</code></pre>
+              <p>In PrintArtZ, marking a request done and writing its generation job together is a natural transaction — you never want one without the other.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How would you safely rename a column or make a breaking schema change?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The danger is data loss and downtime: a naive rename can be interpreted as “drop the old column, add a new empty one.” The professional approach for a live system is the <strong>expand-and-contract</strong> pattern, done over multiple deploys.</p>
+              <p><strong>Expand:</strong> add the new column, and deploy code that writes to both old and new (backfill existing rows via a data migration). <strong>Migrate reads:</strong> switch the app to read from the new column once it's fully populated. <strong>Contract:</strong> in a later migration, drop the old column once nothing references it.</p>
+              <p>The key idea is that each intermediate state keeps the currently-running code working, so you never have a moment where the deployed app and the database schema disagree. For a solo dev on a throwaway database you can just let Prisma recreate it, but interviewers want to hear the zero-downtime version for production.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ADVANCED & WHY ================= -->
+        <section class="panel" data-panel="advanced">
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is the N+1 query problem, and how do ORMs both cause and solve it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The N+1 problem is the single most-asked ORM performance question. It happens when you fetch a list of N records (1 query), then loop over them and trigger a separate query for each one's related data — resulting in <strong>N additional queries</strong>, hence “N+1”. Because ORMs make single-object access feel free, it's easy to write this by accident.</p>
+              <pre><code>// ❌ N+1: 1 query for requests, then 1 per request for its job
+const requests = await prisma.projectRequest.findMany();
+for (const r of requests) {
+  const job = await prisma.generationJob.findUnique({
+    where: { requestId: r.id },   // fires a query every iteration
+  });
+}</code></pre>
+              <p>The fix is to let the ORM fetch the related data up front in a bounded number of queries using <code>include</code> (or <code>select</code>):</p>
+              <pre><code>// ✅ Prisma fetches jobs in one batched extra query, not N
+const requests = await prisma.projectRequest.findMany({
+  include: { job: true },
+});</code></pre>
+              <p>So ORMs <em>cause</em> N+1 by making per-item lazy access effortless, and <em>solve</em> it by offering eager loading (<code>include</code>) and query batching. The lesson: watch for queries inside loops, and enable query logging so you can see how many statements really run.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>When should you drop down to raw SQL, and how do you do it safely in Prisma?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Reach for raw SQL when the query API can't express what you need efficiently: complex aggregations and window functions, recursive CTEs, database-specific features (Postgres full-text search, JSONB operators), heavy analytical reports, or a hot query you've hand-tuned. Prisma supports this without forcing you off the ORM.</p>
+              <pre><code>// Parameterized — safe against SQL injection
+const rows = await prisma.$queryRaw`
+  SELECT status, COUNT(*)::int AS n
+  FROM "ProjectRequest"
+  WHERE "createdAt" &gt;= ${since}
+  GROUP BY status
+`;</code></pre>
+              <p>Use the <strong>tagged-template</strong> form (<code>$queryRaw</code> / <code>$executeRaw</code>) so interpolated values become bound parameters — never build the string by concatenation, which reopens SQL injection. The trade-off is you lose full type inference (you type the result yourself) and portability, so keep raw SQL to the few places it earns its keep.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Why is connection pooling important, and what's the deal with pgbouncer in serverless?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Opening a Postgres connection is relatively expensive, and Postgres caps the total number (often ~100). A <strong>connection pool</strong> keeps a set of connections open and hands them out to queries as needed, so you amortize the setup cost and stay under the limit. Prisma Client maintains its own pool per instance for a normal long-lived server.</p>
+              <p>The problem appears in <strong>serverless / edge</strong> environments (like Vercel functions, which PrintArtZ deploys to): each invocation may spin up its own instance with its own pool, and hundreds of concurrent invocations can blow past Postgres's connection limit instantly. The solution is an <strong>external pooler</strong> like <strong>PgBouncer</strong> that sits in front of the database and multiplexes many client connections onto a small set of real ones.</p>
+              <p>Supabase provides exactly this — a pooled connection string (transaction mode, via PgBouncer). PrintArtZ uses Supabase's pooled URL for the app's runtime queries and the direct connection only for migrations, which is the standard Prisma-on-serverless setup. In PgBouncer transaction mode you also disable prepared statements (or use Prisma's pooling-aware settings), because a connection isn't pinned to one client across statements.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is Prisma's engine-free / driver-adapter architecture?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Historically, Prisma Client didn't talk to the database directly. It shipped a separate <strong>query engine</strong> — a Rust binary bundled with your app — that received query instructions, generated the SQL, managed the connection pool, and returned results. That gave consistent behavior across databases but meant a large native binary that was awkward on serverless and edge runtimes.</p>
+              <p>The newer approach is <strong>driver adapters</strong> plus an <strong>engine-free (queryable) client</strong>: Prisma runs the query logic in JavaScript/WASM and connects through a standard Node database driver via an adapter, instead of the Rust binary managing the connection.</p>
+              <pre><code>import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma  = new PrismaClient({ adapter });</code></pre>
+              <p>The benefits: no heavy native binary to deploy, it runs on edge/serverless runtimes, and it uses battle-tested drivers (and their pooling) directly — e.g. the <code>pg</code> driver for PostgreSQL. PrintArtZ uses this engine-free client with the <code>pg</code> driver adapter against Supabase, which is why the schema enables the <code>driverAdapters</code> preview feature.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>ORM vs query builder (Knex) vs raw SQL — where does each fit?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Think of it as a spectrum of abstraction. <strong>Raw SQL</strong> is the lowest level — maximum power and control, most verbose, manual mapping. A <strong>query builder</strong> like Knex sits in the middle: it gives you a fluent, programmatic API that maps almost one-to-one to SQL (<code>knex("users").where("id", id).select()</code>) — no hand-written strings, but you're still thinking in SQL terms with no object mapping or relation graph. An <strong>ORM</strong> like Prisma is the highest level: you think in models and relations, and it generates the SQL and hydrates objects for you.</p>
+              <div class="vs">
+                <div><h4>Query builder (Knex)</h4><p class="muted">Thin, transparent layer over SQL; predictable output; great when you want SQL control without string-building. No model layer, no relation loading, less type safety.</p></div>
+                <div><h4>ORM (Prisma)</h4><p class="muted">Models, relations, migrations, strong types, eager loading. More magic and abstraction; occasionally you fight it for exotic queries.</p></div>
+              </div>
+              <p>They coexist well: use the ORM for the bulk of the app and its raw-SQL escape hatch (or a query builder) for the rare complex query. Prisma even bundles a typed raw layer (Prisma's <code>$queryRaw</code>) so you rarely need a separate builder.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Prisma vs TypeORM vs Sequelize?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Prisma</h4><p class="muted">Schema-first via <code>schema.prisma</code>; generates a fully type-safe client; excellent DX, autocomplete, and migrations. Not a traditional class-based ORM — results are plain data. Newer, so a few advanced SQL features need the raw escape hatch.</p></div>
+                <div><h4>TypeORM</h4><p class="muted">Class/decorator-based (<code>@Entity</code>), supports both Active Record and Data Mapper, popular with NestJS. Very flexible but historically less reliable type inference and a rougher migration experience.</p></div>
+              </div>
+              <p><strong>Sequelize</strong> is the older, mature, JavaScript-first option with a huge install base; it works well but its TypeScript support was bolted on later and feels less first-class. The short interview answer: pick <strong>Prisma</strong> when you want best-in-class TypeScript safety and DX (why PrintArtZ uses it), <strong>TypeORM</strong> when you want decorator-based entities or a NestJS-native fit, and <strong>Sequelize</strong> for mature, plain-JS projects. All three ultimately generate SQL against the same databases; the difference is developer experience and type safety.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are common performance pitfalls with an ORM, and how do you avoid them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li><strong>N+1 queries:</strong> querying inside a loop; fix with <code>include</code>/<code>select</code> eager loading.</li>
+                <li><strong>Over-fetching:</strong> pulling every column and relation when you need two fields; use <code>select</code> to fetch only what you need.</li>
+                <li><strong>Missing indexes:</strong> filtering or sorting on unindexed columns; add <code>@@index</code> (or <code>@unique</code>) in the schema for hot query paths.</li>
+                <li><strong>Unbounded reads:</strong> <code>findMany()</code> with no <code>take</code>/pagination on a big table; always cap and paginate.</li>
+                <li><strong>Connection exhaustion:</strong> new client per request or no pooler on serverless; use a singleton and PgBouncer.</li>
+                <li><strong>Chatty writes:</strong> many individual writes in a loop; batch with <code>createMany</code> or wrap in <code>$transaction</code>.</li>
+              </ul>
+              <p>The professional habit: turn on query logging (<code>new PrismaClient(&#123; log: ["query"] &#125;)</code>) or use <code>EXPLAIN ANALYZE</code> to see the SQL the ORM actually emits, then fix the measured hot path rather than guessing.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does an ORM protect against SQL injection, and where can you still get it wrong?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>SQL injection happens when user input is concatenated into a query string so it can change the query's structure. ORMs prevent this by default because the query API sends values as <strong>bound parameters</strong> — the SQL text and the data travel separately, so input like <code>"'; DROP TABLE ..."</code> is treated as a literal string value, never as SQL.</p>
+              <pre><code>// Safe: value is parameterized automatically
+await prisma.user.findMany({ where: { email: userInput } });
+
+// Safe raw: tagged template binds ${userInput} as a parameter
+await prisma.$queryRaw`SELECT * FROM "User" WHERE email = ${userInput}`;
+
+// ❌ UNSAFE: building the string yourself reopens injection
+await prisma.$queryRawUnsafe(
+  `SELECT * FROM "User" WHERE email = '${userInput}'`
+);</code></pre>
+              <p>So you're safe as long as you stay in the query API or use the tagged-template raw form. The place people slip is <code>$queryRawUnsafe</code> / <code>$executeRawUnsafe</code> with concatenated input — the “Unsafe” suffix is a deliberate warning. If you must use it, validate/whitelist the input (e.g. for a dynamic column name) rather than trusting it.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · ORMs &amp; Prisma study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

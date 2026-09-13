@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Servers &amp; Hosting — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / Servers &amp; Hosting</div>
+      <h1><span class="g">Servers &amp; Hosting</span> — interview study guide</h1>
+      <p class="lead">
+        Every PrintArtZ page is served by something, and slow AI image jobs have to run
+        somewhere too. This guide walks from what a server actually is, through serverless
+        vs. long-running processes, background job queues, scaling, and how you choose a
+        host — in interview Q&amp;A form with real context. Click any question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Client–Server Basics</button>
+          <button class="tab" data-tab="serverless">Serverless vs Servers</button>
+          <button class="tab" data-tab="jobs">Background Jobs &amp; Queues</button>
+          <button class="tab" data-tab="scaling">Scaling &amp; Reliability</button>
+          <button class="tab" data-tab="hosting">Hosting &amp; Why</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a server, really?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>server</strong> is any program that waits for requests and sends back responses — and, loosely, the machine that program runs on. It's not a special kind of computer; it's a role. Your laptop becomes a server the moment you run something that listens on a port for incoming connections.</p>
+              <p>The counterpart is the <strong>client</strong>: the program that initiates the request. When you open PrintArtZ, your browser is the client and the machine running the Next.js app is the server. The two talk over a network using an agreed protocol (HTTP for the web). The whole web is built on this <strong>client–server model</strong>: many clients, each asking a shared server for pages, data, or actions.</p>
+              <p>A useful clarification for interviews: “server” describes behaviour, not hardware. The same box can be a client for one interaction (calling Supabase) and a server for another (answering your browser).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Walk me through the request/response cycle.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The web is fundamentally <strong>request/response</strong>: the client sends one request, the server sends back exactly one response, and (in classic HTTP) the connection's job for that exchange is done. The client always starts the conversation — a server never spontaneously pushes to a plain HTTP client.</p>
+              <pre><code>1. Client resolves the domain to an IP (DNS lookup)
+2. Client opens a TCP connection (often over TLS for HTTPS)
+3. Client sends an HTTP request:  GET /gallery HTTP/1.1  + headers
+4. Server processes it (maybe queries Supabase)
+5. Server sends an HTTP response: status + headers + body (HTML/JSON)
+6. Browser renders the body</code></pre>
+              <p>For PrintArtZ, visiting the gallery is a <code>GET</code>; submitting the create form is a <code>POST</code> whose body carries the prompt. Because each request is independent, the server needs some way (a cookie/token) to know <em>who</em> is asking — which is why authentication rides along in headers on every request.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Give me the quick tour of HTTP — methods and status codes.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>HTTP</strong> (HyperText Transfer Protocol) is the text-based request/response language of the web. A request has a <strong>method</strong> (the verb), a path, headers (metadata like auth and content type), and an optional body. A response has a <strong>status code</strong>, headers, and a body.</p>
+              <p>The common methods: <code>GET</code> reads data, <code>POST</code> creates/submits, <code>PUT</code>/<code>PATCH</code> update, <code>DELETE</code> removes. <code>GET</code> should be <strong>safe</strong> (no side effects) and, like <code>PUT</code>/<code>DELETE</code>, <strong>idempotent</strong> (repeating it has the same effect), whereas <code>POST</code> is not.</p>
+              <p>Status codes cluster by first digit: <strong>2xx</strong> success (<code>200 OK</code>, <code>201 Created</code>), <strong>3xx</strong> redirect (<code>301</code>, <code>304 Not Modified</code>), <strong>4xx</strong> the client's fault (<code>400</code> bad request, <code>401</code> unauthenticated, <code>403</code> forbidden, <code>404</code> not found, <code>429</code> too many requests), and <strong>5xx</strong> the server's fault (<code>500</code> internal error, <code>503</code> unavailable). Knowing that 4xx = “you” and 5xx = “me” is worth stating plainly in an interview.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a port, and what's an IP address vs a domain?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>An <strong>IP address</strong> identifies a machine on a network (e.g. <code>93.184.216.34</code>). A <strong>port</strong> is a numbered channel <em>on</em> that machine, so one server can run many services at once without them colliding. The pair “IP + port” is a unique endpoint a client connects to.</p>
+              <p>Some ports are conventional: <strong>80</strong> for HTTP, <strong>443</strong> for HTTPS, <strong>5432</strong> for PostgreSQL (what Supabase runs), <strong>6379</strong> for Redis, and <strong>3000</strong> for a local Next.js dev server. When you visit <code>https://site.com</code> the browser silently uses 443.</p>
+              <p><strong>DNS</strong> ties this together: humans use domain names (<code>printartz.com</code>), and DNS translates them to IPs so requests can be routed. It's the phone book of the internet — you remember the name, DNS finds the number.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What's the difference between a web server and an application server?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>web server</strong> (nginx, Apache, Caddy) specializes in speaking HTTP: accepting connections, serving static files (HTML, CSS, images), handling TLS, and forwarding dynamic requests onward. It's fast and dumb by design.</p>
+              <p>An <strong>application server</strong> runs <em>your code</em> to produce dynamic responses — a Node.js process running Next.js, for instance, deciding what HTML to render based on the logged-in user and database. In many setups the web server sits in front as a <strong>reverse proxy</strong> and passes dynamic requests back to the app server, while serving static assets itself.</p>
+              <p>In modern managed platforms this split is largely hidden from you: Vercel serves PrintArtZ's static assets from its CDN edge and runs your dynamic Next.js code in serverless functions, so you don't hand-configure nginx — but the two roles are still there under the hood.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does it mean for HTTP to be “stateless”?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Stateless means the server keeps <strong>no memory of previous requests</strong> between them — each request must carry everything needed to understand it. HTTP has no built-in notion of “this is the same user as a moment ago.”</p>
+              <p>So how do you stay logged in? The client re-sends proof of identity on <em>every</em> request, typically a <strong>cookie</strong> or a token in the <code>Authorization</code> header. The server validates it fresh each time. That's exactly how PrintArtZ's Supabase auth works: a session token accompanies each request and the server re-checks it.</p>
+              <p>This is a feature, not a limitation. Because no request depends on server-side memory, you can put many identical servers behind a load balancer and any of them can handle any request — the foundation of horizontal scaling.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How does HTTPS/TLS actually protect a request?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>HTTPS</strong> is just HTTP running inside a <strong>TLS</strong> encrypted tunnel. TLS gives you three things: <strong>encryption</strong> (eavesdroppers on the network see gibberish), <strong>integrity</strong> (tampering is detected), and <strong>authentication</strong> (a certificate proves you're really talking to <code>printartz.com</code>, not an impostor).</p>
+              <p>At connection time there's a <strong>handshake</strong>: the server presents a certificate signed by a trusted Certificate Authority, the two sides agree on keys, and from then on the traffic is encrypted. Modern hosts like Vercel provision and renew these certificates automatically, so HTTPS “just works” without you managing keys.</p>
+              <p>The interview-worthy point: because auth tokens ride in headers on every request, HTTPS is non-negotiable — without it, anyone on the network could read a user's session token and impersonate them.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SERVERLESS ================= -->
+        <section class="panel" data-panel="serverless">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a traditional long-running server?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A traditional server is a <strong>process that stays running 24/7</strong>, listening on a port, ready to handle requests the instant they arrive. You provision a machine — a physical box, a virtual machine (VM), or a container — start your app, and it stays up whether one person or a thousand are using it.</p>
+              <p>Because the process is always alive, it can hold things in memory between requests (caches, open database connections, in-progress work) and it can run for as long as it likes — a five-minute job is no problem. The trade-off is that you pay for it to sit there even when idle, and <em>you</em> are responsible for keeping it healthy, patched, and scaled.</p>
+              <p>Examples: a Node.js app on an AWS EC2 VM, a Docker container on Render, or a background worker on Railway. This is the model PrintArtZ will use for its image-generation <strong>worker</strong>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is serverless / a serverless function?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>“Serverless” doesn't mean there are no servers — it means <strong>you don't manage them</strong>. You upload a single function; the platform runs it on demand when a request arrives, spins it down when idle, and bills you only for the milliseconds it actually executed. There's no machine for you to provision, patch, or keep alive.</p>
+              <pre><code>// A Vercel/Next.js route handler = a serverless function
+export async function POST(req) {
+  const { prompt } = await req.json();
+  // ...do work, return a response...
+  return Response.json({ ok: true });
+}</code></pre>
+              <p>Each PrintArtZ API route and server-rendered page deploys as one of these functions. The platform handles scaling automatically: ten simultaneous visitors just cause ten function instances to run. The catch is that instances are short-lived and stateless, and they have a hard execution time limit — which shapes how you design slow features.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a cold start and why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>When a serverless function hasn't run recently, there's no instance ready, so the platform must <strong>spin one up</strong>: allocate a sandbox, load your code, and initialize the runtime before your handler even begins. That startup delay — often tens to hundreds of milliseconds — is a <strong>cold start</strong>.</p>
+              <p>Once warm, an instance can be reused for subsequent requests (a <strong>warm start</strong>) and responds instantly, until it goes idle and is torn down again. Cold starts hurt most for infrequently-hit endpoints and for latency-sensitive user actions.</p>
+              <p>Mitigations include keeping functions small (less to load), avoiding heavy top-level initialization, choosing lighter runtimes (edge runtimes start faster than full Node), and, on some platforms, paying to keep instances warm. For PrintArtZ this is a minor concern for page loads, but it's one more reason a long AI job doesn't belong in a request-triggered function.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why are serverless functions stateless, and what follows from that?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Serverless instances are ephemeral: any one can be created or destroyed at any moment, and two requests from the same user may hit entirely different instances. So you <strong>cannot rely on in-memory state</strong> surviving between requests — no storing a user's session in a local variable, no in-process job progress, no local file that persists.</p>
+              <p>Anything that must persist has to go to an <strong>external, shared store</strong>: a database (Supabase), a cache (Redis), or object storage for files. State lives <em>outside</em> the function, and the function is a pure, disposable worker that reads and writes that shared state.</p>
+              <p>This is actually the same discipline that makes horizontal scaling work. It's liberating once you internalize it — but it means features that feel like they need “memory,” such as tracking a long-running generation, must be modelled as rows in a database, not variables in a process.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What's the execution time limit, and why does it matter for PrintArtZ?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Serverless platforms cap how long a single function may run — commonly around 10–60 seconds on typical plans (Vercel's exact limit depends on plan and runtime). If your handler exceeds it, the platform <strong>kills it mid-execution</strong> and the user gets a timeout, with no clean way to resume.</p>
+              <p>This is the crux of PrintArtZ's architecture. AI <strong>image generation can take much longer than a request should stay open</strong> — potentially many seconds to minutes depending on the model and queue. Trying to generate an image synchronously inside the create-request function risks hitting the timeout and wastes a held-open connection.</p>
+              <p>The correct pattern is to make the request fast: the function validates input, records a “pending” job, enqueues it, and immediately returns a job id. The actual slow work runs elsewhere — in a <strong>separate long-running worker</strong> — and the UI polls or subscribes for the result. That's why PrintArtZ plans a dedicated worker plus a queue rather than doing everything in the serverless request.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>Serverless functions vs. long-running servers — trade-offs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>Serverless</h4><p class="muted">Zero server management, auto-scales to zero and to spikes, pay-per-use so cheap when idle. But: cold starts, statelessness, and a hard execution time limit make long or stateful jobs a poor fit.</p></div>
+                <div><h4>Long-running server</h4><p class="muted">Runs indefinitely, holds in-memory state and pooled connections, ideal for slow jobs and steady heavy load. But: you pay while idle, and you own scaling, patching, and uptime.</p></div>
+              </div>
+              <p>They're not either/or — mature systems combine them. PrintArtZ's plan is exactly this hybrid: <strong>serverless</strong> Next.js on Vercel for the fast, spiky, request/response web layer, and a <strong>long-running worker</strong> for the slow, unbounded AI generation jobs. Use serverless for short request-scoped work; use a dedicated process for anything long, stateful, or continuous.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is edge vs. regional serverless, and why choose one?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Regional (Node.js) functions run in a specific data-center region on a full Node runtime — they can use any npm package and talk directly to your database, but they live in one place, so users far away pay extra latency. <strong>Edge functions</strong> run on a lightweight runtime distributed across many locations worldwide, executing physically close to the user for very low latency and fast cold starts.</p>
+              <p>The catch is that the edge runtime is restricted: no full Node APIs, tighter limits, and you generally shouldn't open a raw database connection from dozens of edge locations. Edge shines for lightweight, latency-sensitive work — auth checks, redirects, personalization, geolocation.</p>
+              <p>For PrintArtZ, edge is a fine fit for things like middleware auth gating, while data-heavy routes that hit Supabase are better as regional functions placed in the same region as the database to minimize round-trip time.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= JOBS ================= -->
+        <section class="panel" data-panel="jobs">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Why offload slow work to a background job?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Some work is too slow to finish inside a single web request. If a user clicks “Generate” and the request tries to do the whole AI job inline, they stare at a spinner for a long time, the connection is held open the entire time, and on serverless you risk hitting the execution time limit and losing the work entirely.</p>
+              <p>The fix is to <strong>decouple accepting the work from doing the work</strong>. The request does the minimum — validate, save a “pending” record, enqueue the task — and returns immediately (typically <code>202 Accepted</code> with a job id). A separate process picks the task up and does the heavy lifting; the UI checks back for the result.</p>
+              <p>This keeps the web layer fast and responsive, survives long-running tasks comfortably, and lets you retry failures without the user re-submitting. It's the backbone of PrintArtZ's image pipeline.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a job queue?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>job queue</strong> is a durable list of tasks waiting to be processed. Producers (your web app) <strong>push</strong> jobs onto it; consumers (workers) <strong>pull</strong> jobs off and execute them. It sits between the two so they don't have to run at the same speed or even be online at the same time.</p>
+              <p>The queue buffers spikes: if a hundred users hit “Generate” at once, the requests all return instantly and the jobs simply line up, to be worked through as capacity allows. It also decouples failure — if a worker crashes mid-job, the job can be requeued rather than lost.</p>
+              <p>PrintArtZ's create endpoint becomes a producer that enqueues an “generate image” job; one or more workers are the consumers that actually call the AI model and store the result. The queue is the shock absorber between a spiky front end and slow, limited-capacity generation.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are Redis and BullMQ, and how do they fit together?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Redis</strong> is an in-memory data store — extremely fast key/value storage often used for caching, counters, and, crucially, as the backing store for queues. Because it's in-memory it's quick enough to coordinate lots of small operations like pushing and popping jobs. PrintArtZ plans to use <strong>Upstash</strong>, a serverless/hosted Redis that fits the serverless model (pay-per-use, connects over HTTP/TLS).</p>
+              <p><strong>BullMQ</strong> is a Node.js job-queue library built <em>on top of</em> Redis. It gives you the high-level pieces you'd otherwise hand-roll: adding jobs, workers that process them, automatic retries with backoff, delayed/scheduled jobs, concurrency control, and progress events.</p>
+              <pre><code>// Producer (in the Next.js create route)
+await imageQueue.add("generate", { prompt, userId });
+
+// Worker (separate long-running process)
+new Worker("images", async (job) =&gt; {
+  const url = await callAIModel(job.data.prompt);
+  await saveResult(job.data.userId, url);
+}, { connection: redis, concurrency: 3 });</code></pre>
+              <p>So the layering is: Redis is the storage engine, BullMQ is the queue framework using it, and your worker is the code that runs each job.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a worker, and where does it run?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>worker</strong> is a long-running process whose whole job is to pull tasks off the queue and execute them. It's not triggered by a web request — it loops continuously, blocking until a job is available, processing it, then reaching for the next one. It reports progress and results back (to Redis and/or the database).</p>
+              <p>Because it needs to run for as long as a job takes and stay alive between jobs, a worker <strong>can't be a serverless function</strong> — it belongs on a long-running host. PrintArtZ's worker would run on something like Render, Railway, or a Fly.io/AWS container: a persistent process next to the queue.</p>
+              <p>You can run several workers (or one worker with concurrency &gt; 1) to process multiple jobs in parallel, and scale that number up or down based on queue depth. This separation — spiky serverless web tier, steady worker tier — is what lets each part scale on its own terms.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do retries and backoff work, and why do you need them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Jobs fail for transient reasons — the AI API times out, hits a rate limit, or the network blips. <strong>Retries</strong> mean the queue automatically re-runs a failed job a configured number of times before giving up, so a momentary glitch doesn't lose the user's request.</p>
+              <p>Naively retrying immediately can make things worse (hammering an already-struggling API), so you use <strong>exponential backoff</strong>: wait a little before the first retry, then longer before each subsequent one. BullMQ supports this with a couple of options.</p>
+              <pre><code>await imageQueue.add("generate", data, {
+  attempts: 4,
+  backoff: { type: "exponential", delay: 2000 }, // 2s, 4s, 8s...
+});</code></pre>
+              <p>After the final failed attempt the job lands in a <strong>dead-letter</strong>/failed set where you can inspect and manually replay it. For PrintArtZ this means a flaky model call gets retried transparently, and the user's job is marked “failed” only after genuine, repeated failure.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is idempotency and why does it matter for jobs?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Idempotency</strong> means running an operation multiple times has the same effect as running it once. It matters because queues generally guarantee <strong>at-least-once</strong> delivery, not exactly-once: a job can be delivered twice if a worker crashes after finishing the work but before acknowledging it. Without care, a user could be charged a credit twice or get two duplicate images.</p>
+              <p>You make a job idempotent by giving each unit of work a stable <strong>id</strong> and checking whether it's already been done before doing it again — e.g. a unique key on the result row, or a “this job id already produced output” guard. Then a duplicate delivery becomes a harmless no-op.</p>
+              <pre><code>async function handle(job) {
+  if (await alreadyDone(job.id)) return; // safe replay
+  const url = await callAIModel(job.data.prompt);
+  await saveResultOnce(job.id, url);     // unique on job.id
+}</code></pre>
+              <p>The interview soundbite: “design workers assuming any job may run more than once.” For PrintArtZ, keying results and credit-deductions on the job id prevents double-charging and duplicate art on retries.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How does the UI find out a background job is finished?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Since the initial request returns before the work is done, the front end needs a way to learn the result later. There are three common approaches, in rough order of sophistication:</p>
+              <ul>
+                <li><strong>Polling:</strong> the browser asks <code>GET /jobs/:id</code> every few seconds until status flips to <code>done</code>. Simplest to build and totally serverless-friendly; costs a few extra requests.</li>
+                <li><strong>Real-time subscription:</strong> the client subscribes and the server pushes an update when the row changes. Supabase Realtime can broadcast a database change to the browser, so when the worker writes the finished image the UI updates instantly with no polling.</li>
+                <li><strong>Webhook / callback:</strong> for server-to-server flows, the worker calls back a URL when done — less relevant for updating a live browser.</li>
+              </ul>
+              <p>For PrintArtZ, the worker writes the completed image and status into Supabase, and the create page either polls that job row or listens via Supabase Realtime to swap the spinner for the finished art.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= SCALING ================= -->
+        <section class="panel" data-panel="scaling">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Horizontal vs vertical scaling — what's the difference?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Vertical scaling (“scale up”)</strong> means making one machine more powerful — more CPU, RAM, or faster disks. It's simple (no code changes) and often the right first move, but it hits a ceiling: there's a biggest machine you can buy, it's a single point of failure, and cost rises steeply at the top end.</p>
+              <p><strong>Horizontal scaling (“scale out”)</strong> means running <em>more</em> machines/instances and spreading load across them with a load balancer. It scales far beyond one box and adds redundancy — if one instance dies, others carry on — but it requires your app to be <strong>stateless</strong> so any instance can serve any request.</p>
+              <p>Serverless is horizontal scaling taken to its extreme and automated: the platform simply runs as many function instances as demand requires. PrintArtZ's web tier scales out automatically on Vercel, while the worker tier scales by adding more worker processes when the queue gets deep.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a load balancer?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>load balancer</strong> sits in front of a pool of identical servers and distributes incoming requests across them, so no single instance is overwhelmed. Clients connect to the load balancer's address; it decides which backend actually handles each request (round-robin, least-connections, and so on).</p>
+              <p>Beyond spreading load, it provides <strong>health checking</strong> and <strong>failover</strong>: it stops routing to an instance that fails its health checks and sends traffic only to healthy ones, so a single crashed server doesn't take the site down. It often also terminates TLS and can do sticky sessions if needed.</p>
+              <p>On managed platforms like Vercel this is invisible — the platform's routing layer load-balances across your function instances automatically. You'd configure one explicitly when running your own VMs or containers behind, say, an AWS Application Load Balancer.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why is stateless design essential for scaling out?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>If a server stores per-user state in its own memory (a session, a shopping cart, upload progress), then that user <strong>must</strong> keep hitting the same instance, or their state vanishes. That's called a “sticky” dependency, and it fights against load balancing and against instances being freely added or destroyed.</p>
+              <p>A <strong>stateless</strong> server keeps no such per-request memory: everything shared lives in an external store (database, Redis, object storage) that all instances reach. Now any instance can serve any request, you can add or kill instances at will, and a crash loses nothing important.</p>
+              <p>This is why HTTP's statelessness and serverless's ephemerality push you in the same healthy direction. PrintArtZ keeps sessions in tokens, data in Supabase, jobs in Redis — so both the web functions and the workers are interchangeable and disposable.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is caching and what is a CDN?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Caching</strong> means storing the result of expensive work so you can serve it again without redoing it. It appears at every layer: the browser caches assets, a CDN caches responses near users, the app caches computed values (often in Redis), and the database caches query plans and pages. The art is knowing what's safe to cache and for how long (and how to invalidate it when data changes).</p>
+              <p>A <strong>CDN</strong> (Content Delivery Network) is a globally distributed set of edge servers that cache your static assets — images, CSS, JS, and even pre-rendered pages — physically close to users. A visitor in Tokyo gets files from a nearby edge node instead of an origin server across the world, dramatically cutting latency and offloading the origin.</p>
+              <p>Vercel serves PrintArtZ's static assets and cacheable pages from its global CDN automatically, and generated images stored in object storage are typically served through a CDN too, so the gallery loads fast everywhere.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What are health checks, and how do they keep a system reliable?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>health check</strong> is a lightweight endpoint (e.g. <code>GET /healthz</code>) that reports whether an instance is fit to serve traffic. A load balancer or orchestrator polls it periodically; if an instance stops responding or reports unhealthy, it's pulled out of rotation and traffic reroutes to healthy instances.</p>
+              <p>There's a useful distinction between a <strong>liveness</strong> check (“is the process alive? if not, restart it”) and a <strong>readiness</strong> check (“is it ready to take traffic yet? e.g. finished warming up, database reachable”). Together they let the platform restart what's stuck and route only to what's ready.</p>
+              <p>For PrintArtZ's worker tier on a container host, a health check lets the platform automatically restart a worker that has hung or crashed, so jobs keep getting processed without manual intervention — a core piece of self-healing reliability.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What are common single points of failure, and how do you remove them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>single point of failure (SPOF)</strong> is any component whose failure takes down the whole system. Typical culprits: one app server, one database with no replica, one region, or one shared dependency like the queue's Redis. Reliability engineering is largely about hunting these down and adding redundancy.</p>
+              <p>The general remedy is <strong>redundancy plus failover</strong>: run multiple app instances behind a load balancer; run the database with a standby replica that can be promoted; deploy across multiple availability zones or regions; and make external dependencies resilient (retries, timeouts, circuit breakers) so one slow service doesn't cascade.</p>
+              <p>Managed services absorb a lot of this: Vercel spreads functions across infrastructure, Supabase offers replication/backups, and Upstash runs Redis with durability options. You still design the app so that a transient dependency failure degrades gracefully — e.g. a failed AI call retries via the queue rather than crashing the request.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How would you handle a sudden traffic spike on PrintArtZ?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Different tiers absorb spikes differently. The <strong>web tier</strong> on Vercel scales out automatically — more visitors just spawn more serverless instances — and the CDN absorbs most static and cacheable traffic without touching your code at all. So page loads and the gallery handle bursts well by default.</p>
+              <p>The bottleneck is <strong>generation</strong>, because it's slow and constrained by the AI provider's rate limits. Here the <strong>queue is the pressure valve</strong>: a surge of “Generate” clicks all return instantly and simply pile up as jobs, to be processed at a sustainable rate. You protect the system with <strong>rate limiting</strong> (per-user caps, returning <code>429</code>) and by tuning worker concurrency so you don't exceed the model's limits.</p>
+              <p>If sustained demand is high, you scale the worker tier out (more workers) and watch queue depth as your key metric. The database is protected with connection pooling and caching of hot reads. The theme: let elastic tiers auto-scale, and buffer the inelastic slow work behind a queue.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= HOSTING ================= -->
+        <section class="panel" data-panel="hosting">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What's the difference between IaaS, PaaS, and SaaS?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>These are cloud service models that differ by <strong>how much the provider manages for you</strong>. Think of it as a spectrum from “here's a bare machine” to “here's a finished product.”</p>
+              <ul>
+                <li><strong>IaaS (Infrastructure as a Service):</strong> you rent raw compute — e.g. an AWS EC2 virtual machine. You get an OS and total control, but <em>you</em> install runtimes, configure the web server, secure it, and handle scaling. Maximum flexibility, maximum responsibility.</li>
+                <li><strong>PaaS (Platform as a Service):</strong> you give the platform your code and it handles the servers, OS, scaling, and deploys — e.g. Vercel, Render, Railway, Heroku. Far less ops work; less low-level control.</li>
+                <li><strong>SaaS (Software as a Service):</strong> you just use finished software over the web — e.g. Gmail, or Supabase's managed database. No infrastructure concerns at all.</li>
+              </ul>
+              <p>PrintArtZ leans on PaaS and SaaS deliberately: Vercel (PaaS) hosts the app, Supabase (managed/SaaS) hosts the database and auth, Upstash (managed) hosts Redis — so a small team ships features instead of running servers.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a container, and what is Docker?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A <strong>container</strong> packages your application together with everything it needs to run — code, runtime, libraries, system dependencies — into one portable unit that behaves the same everywhere. It solves the classic “works on my machine” problem: the same container image runs identically on your laptop, in CI, and in production.</p>
+              <p><strong>Docker</strong> is the most popular tool for building and running containers. You write a <code>Dockerfile</code> describing how to assemble the image, build it once, and run that image anywhere a container runtime exists.</p>
+              <p>Containers are lighter than full virtual machines because they share the host's OS kernel rather than each running a whole guest OS — so they start in seconds and pack densely onto a host. For PrintArtZ, the long-running worker is a natural fit to ship as a container to Render/Railway/Fly.io: reproducible, easy to deploy, and easy to scale by running more copies.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are environments (dev, staging, production) and why separate them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Environments</strong> are separate, isolated copies of your system for different stages of the lifecycle. <strong>Development</strong> is your local machine for building and experimenting. <strong>Staging</strong> is a production-like environment for final testing with realistic data. <strong>Production</strong> is the live system real users touch.</p>
+              <p>Separating them means you can break things safely in dev/staging without affecting real users or real data, and you can validate a change in a production-like setting before it goes live. Each environment gets its own configuration and secrets via <strong>environment variables</strong> — separate database URLs, API keys, and so on — so test activity never pollutes production.</p>
+              <p>Vercel supports this cleanly: every pull request gets a <strong>preview deployment</strong> with its own URL, and merging to the main branch promotes to production. PrintArtZ would keep separate Supabase projects/keys per environment so a preview never writes to live user data.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why deploy PrintArtZ's Next.js app to Vercel specifically?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Vercel is built by the team behind Next.js, so it's the most frictionless home for a Next.js app — the framework's features (server components, route handlers, image optimization, ISR, middleware) map directly onto Vercel's platform with essentially zero configuration. You push to Git and it builds and deploys.</p>
+              <p>Practically, you get automatic HTTPS, a global CDN for static assets and cacheable pages, serverless (and edge) functions for dynamic code, preview deployments per pull request, and automatic scaling — all the infrastructure concerns handled. For a small team that means shipping product instead of managing servers.</p>
+              <p>The one thing it deliberately does <em>not</em> host well is a long-running process, because its compute is serverless with an execution time limit. That's precisely why PrintArtZ pairs Vercel (web) with a separate worker host (generation) — using each platform for what it's best at.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Where does the AI worker run, and why not on Vercel?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The worker needs to be a <strong>long-running process</strong> that stays alive to poll the queue and to churn through jobs that can take a long time. Vercel's serverless compute is the opposite: short-lived, request-triggered, and capped by an execution time limit — a bad fit for a process that must run continuously and for minutes at a stretch.</p>
+              <p>So the worker belongs on a host that offers persistent processes/containers: <strong>Render</strong> (background workers), <strong>Railway</strong>, <strong>Fly.io</strong>, or a container on AWS. You ship the worker as a small Node service (ideally a Docker image), point it at the same Upstash Redis and Supabase, and let it run.</p>
+              <p>This split is the whole architectural point: Vercel handles the fast, elastic, spiky web layer; a dedicated worker host handles the slow, steady, unbounded generation work. Each scales and is billed on its own terms.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why use managed Supabase instead of self-hosting Postgres?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Supabase is a managed platform built around <strong>PostgreSQL</strong>, bundling the database with auth, storage, auto-generated APIs, and realtime subscriptions. Choosing it means you don't run the database yourself — no provisioning, patching, backups, replication, or failover to babysit.</p>
+              <p>Self-hosting Postgres gives you total control and can be cheaper at very large scale, but it's real operational work: you're on the hook for security updates, backups you can actually restore, connection limits, monitoring, and high availability. For a small team, that's time not spent on the product.</p>
+              <p>For PrintArtZ the managed choice is compelling because Supabase's <strong>auth</strong> integrates with the app, its <strong>storage</strong> can hold generated images, and its <strong>realtime</strong> feature lets the UI learn the instant a worker finishes a job — several needed pieces from one managed service, all speaking plain Postgres underneath so you're not locked into anything exotic.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>PaaS (Vercel/Render/Railway) vs IaaS (raw AWS EC2)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>PaaS</h4><p class="muted">Push code, platform runs it. Handles servers, scaling, TLS, deploys, previews. Fast to ship, low ops burden. Less low-level control, potential platform lock-in, and cost can climb at high scale.</p></div>
+                <div><h4>IaaS (EC2)</h4><p class="muted">Rent bare VMs with full control over OS, networking, and runtime. Cheapest per-unit at scale and maximally flexible, but you own provisioning, security patching, scaling, and uptime.</p></div>
+              </div>
+              <p>The honest trade-off is <strong>engineering time vs. control and unit cost</strong>. A small team moving fast — like PrintArtZ — almost always wins with PaaS/managed services, accepting a higher per-unit price to avoid running infrastructure. You'd reach for IaaS when you have specialized needs (custom networking, GPUs, unusual runtimes) or scale large enough that the ops investment pays for itself.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>When is serverless the wrong choice, and a VM/container right?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Serverless is wrong when the workload fights its core constraints. Pick a VM/container instead when you need: <strong>long-running or unbounded execution</strong> (a job past the time limit — PrintArtZ's generation); a <strong>persistent process</strong> that stays up (queue workers, websocket servers, schedulers); <strong>in-memory state or warm connections</strong> that must survive between requests; predictable, <strong>steady high load</strong> where always-on compute is cheaper than per-invocation billing; or special hardware like <strong>GPUs</strong>.</p>
+              <p>Serverless remains the better choice for the opposite profile: bursty, short, stateless request/response work where you want zero ops and automatic scaling — exactly PrintArtZ's web pages and API routes.</p>
+              <p>The mature answer is that it isn't a religious choice. Modern systems mix both, and PrintArtZ is a textbook example: <strong>serverless</strong> Vercel for the web tier, a <strong>long-running container</strong> worker for generation, with a queue connecting them. Match each workload to the compute model that fits its shape.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · Servers &amp; Hosting study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>
