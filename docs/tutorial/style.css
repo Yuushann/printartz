@@ -1,0 +1,89 @@
+:root {
+  --bg: #0f1020; --panel: #191a2e; --panel2: #21223c; --ink: #ececf5;
+  --muted: #a0a1bd; --line: #2c2d4a; --fuchsia: #d946ef; --violet: #8b5cf6;
+  --sky: #38bdf8; --emerald: #34d399; --amber: #fbbf24; --red: #f87171;
+  --code-bg: #0b0c18;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: radial-gradient(1200px 600px at 20% -10%, #1e1b4b 0%, var(--bg) 55%);
+  color: var(--ink); font: 16px/1.65 ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+}
+a { color: var(--sky); }
+.wrap { max-width: 980px; margin: 0 auto; padding: 36px 20px 90px; }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: linear-gradient(90deg, var(--fuchsia), var(--sky)); color: #0b0b17; }
+.crumbs { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+h1 { font-size: 38px; margin: 14px 0 6px; }
+.g { background: linear-gradient(90deg, var(--fuchsia), var(--violet), var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h2 { font-size: 24px; margin: 40px 0 6px; }
+.lead { color: var(--muted); max-width: 760px; }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin: 18px 0; color: var(--muted); }
+
+/* tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 18px; }
+.tab { cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.tab.active { background: linear-gradient(90deg, var(--fuchsia), var(--violet)); color: #0b0b17; border-color: transparent; }
+.panel { display: none; }
+.panel.active { display: block; animation: fade .25s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+
+/* cards grid */
+.grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: block; text-decoration: none; color: inherit; transition: transform .15s, border-color .15s; }
+a.card:hover { transform: translateY(-3px); border-color: var(--violet); }
+.card h3 { margin: 0 0 4px; font-size: 18px; }
+.card .role { font-size: 12px; color: var(--violet); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.card p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.pill { display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.pill.ready { background: rgba(52,211,153,.15); color: var(--emerald); }
+.pill.soon { background: rgba(160,161,189,.15); color: var(--muted); }
+
+/* accordion Q&A */
+.qa { border: 1px solid var(--line); border-radius: 12px; margin: 10px 0; overflow: hidden; background: var(--panel); }
+.qa > button { width: 100%; text-align: left; cursor: pointer; border: 0; background: transparent; color: var(--ink);
+  padding: 14px 16px; font-size: 15.5px; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; }
+.qa > button:hover { background: var(--panel2); }
+.qa > button .chev { color: var(--violet); transition: transform .2s; }
+.qa.open > button .chev { transform: rotate(90deg); }
+.qa .body { display: none; padding: 0 16px 16px; color: var(--ink); }
+.qa.open .body { display: block; }
+.qa .body p { color: var(--ink); }
+.qa .body .muted { color: var(--muted); }
+.lvl { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-right: 8px; }
+.lvl.basic { background: rgba(56,189,248,.15); color: var(--sky); }
+.lvl.mid { background: rgba(251,191,36,.15); color: var(--amber); }
+.lvl.adv { background: rgba(217,70,239,.15); color: var(--fuchsia); }
+
+/* code */
+pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto; margin: 12px 0; }
+code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
+p code, li code { background: var(--panel2); padding: 1px 6px; border-radius: 6px; }
+.vs { display: grid; gap: 12px; grid-template-columns: 1fr; margin: 12px 0; }
+@media (min-width: 640px) { .vs { grid-template-columns: 1fr 1fr; } }
+.vs > div { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--panel2); }
+.vs h4 { margin: 0 0 6px; }
+
+/* services pulse */
+.svc { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
+.svc .meta { font-size: 13px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: var(--muted); }
+.dot.ok { background: var(--emerald); box-shadow: 0 0 10px var(--emerald); }
+.dot.down { background: var(--red); box-shadow: 0 0 10px var(--red); }
+.dot.pending { background: var(--amber); animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.status-text { font-size: 13px; font-weight: 700; min-width: 96px; text-align: right; }
+button.btn { cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; color: #0b0b17; background: linear-gradient(90deg, var(--fuchsia), var(--violet)); }
+button.btn:disabled { opacity: .6; cursor: default; }
+
+/* vertical flow (no numbers, no controls) */
+.vflow { max-width: 520px; margin: 16px 0; }
+.vnode { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--violet); border-radius: 12px; padding: 12px 16px; }
+.vnode .t { font-weight: 700; }
+.vnode .d { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.vconn { width: 2px; height: 22px; margin: 0 0 0 24px; background: linear-gradient(var(--violet), var(--sky)); position: relative; }
+.vconn::after { content: "▼"; position: absolute; left: -6px; bottom: -4px; color: var(--sky); font-size: 12px; }
+
+footer { margin-top: 60px; color: var(--muted); font-size: 13px; text-align: center; border-top: 1px solid var(--line); padding-top: 20px; }

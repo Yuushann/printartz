@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>React — PrintArtZ Study Guide</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="crumbs"><a href="../index.html">← Training guide</a> / React</div>
+      <h1><span class="g">React</span> — interview study guide</h1>
+      <p class="lead">
+        React is the UI library PrintArtZ's frontend is built on. This guide goes from
+        absolute basics to advanced, in interview Q&amp;A form with real code. Click any
+        question to expand.
+      </p>
+      <div style="display:flex;gap:10px;margin:10px 0">
+        <button class="btn" data-expand-all>Expand all</button>
+        <button class="tab" data-collapse-all>Collapse all</button>
+      </div>
+
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="basics">Basics</button>
+          <button class="tab" data-tab="components">Components &amp; Props</button>
+          <button class="tab" data-tab="state">State &amp; Events</button>
+          <button class="tab" data-tab="hooks">Hooks</button>
+          <button class="tab" data-tab="perf">Advanced &amp; Performance</button>
+          <button class="tab" data-tab="why">Why React vs…</button>
+        </div>
+
+        <!-- ================= BASICS ================= -->
+        <section class="panel" data-panel="basics">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is React and what problem does it solve?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>React is a JavaScript <strong>library for building user interfaces</strong> out of reusable <strong>components</strong>. Before React, updating the page meant manually finding DOM nodes and mutating them (jQuery-style), which got tangled fast.</p>
+              <p>React lets you <strong>describe what the UI should look like for a given state</strong>, and it figures out the minimal DOM changes needed. You write <em>declarative</em> code (“for this data, show this”) instead of <em>imperative</em> steps.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the Virtual DOM?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>The real DOM (the browser's tree of elements) is slow to update repeatedly. React keeps a lightweight in-memory copy called the <strong>Virtual DOM</strong>. When state changes, React builds a new virtual tree, <strong>diffs</strong> it against the previous one (“reconciliation”), and applies only the changed parts to the real DOM.</p>
+              <p class="muted">Interview tip: the VDOM isn't “faster than the DOM” magically — it's a strategy to <em>batch and minimize</em> real DOM writes.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is JSX?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>JSX is HTML-like syntax inside JavaScript. It's <strong>not</strong> HTML and not required — it compiles to <code>React.createElement(...)</code> calls.</p>
+              <pre><code>const el = &lt;h1 className="title"&gt;Hello&lt;/h1&gt;;
+// compiles to:
+const el = React.createElement("h1", { className: "title" }, "Hello");</code></pre>
+              <p>Note <code>className</code> (not <code>class</code>) and <code>{}</code> to embed JS: <code>&lt;p&gt;{2 + 2}&lt;/p&gt;</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>Declarative vs imperative — why does React prefer declarative?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Imperative:</strong> you list the steps (“create a div, set its text, append it”). <strong>Declarative:</strong> you describe the end result and let React sync the DOM.</p>
+              <pre><code>// Imperative (vanilla)
+const p = document.createElement("p");
+p.textContent = count;
+document.body.appendChild(p);
+
+// Declarative (React)
+return &lt;p&gt;{count}&lt;/p&gt;;</code></pre>
+              <p>Declarative code is easier to reason about because the UI is a <em>function of state</em>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Is React a framework or a library? Why does it matter?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>React is a <strong>library</strong> — it only handles the view layer. Routing, data fetching, and build setup are your choice (or a framework's). A <strong>framework</strong> like Next.js wraps React and provides those opinions. PrintArtZ uses Next.js so it gets routing + a backend for free.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= COMPONENTS ================= -->
+        <section class="panel" data-panel="components">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is a component? Function vs class components?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A component is a reusable piece of UI — a function that returns JSX. Modern React uses <strong>function components</strong> (class components are legacy).</p>
+              <pre><code>function Greeting() {
+  return &lt;h1&gt;Hello!&lt;/h1&gt;;
+}</code></pre>
+              <p>Component names must be <strong>Capitalized</strong> so React treats them as components, not HTML tags.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are props?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Props are inputs passed to a component (like function arguments). They are <strong>read-only</strong> — a component must never modify its own props.</p>
+              <pre><code>function Welcome({ name }: { name: string }) {
+  return &lt;p&gt;Welcome, {name}!&lt;/p&gt;;
+}
+&lt;Welcome name="Amit" /&gt;</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is the <code>children</code> prop?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Whatever you put between a component's tags is passed as <code>children</code> — great for wrappers/layouts.</p>
+              <pre><code>function Card({ children }) {
+  return &lt;div className="card"&gt;{children}&lt;/div&gt;;
+}
+&lt;Card&gt;&lt;h2&gt;Title&lt;/h2&gt;&lt;/Card&gt;</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you render a list, and why are <code>key</code>s required?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Use <code>.map()</code> to turn data into elements. Each needs a stable, unique <code>key</code> so React can track items across re-renders.</p>
+              <pre><code>{items.map((item) =&gt; (
+  &lt;li key={item.id}&gt;{item.label}&lt;/li&gt;
+))}</code></pre>
+              <p class="muted">Avoid using the array <strong>index</strong> as a key when the list can reorder/insert — it causes subtle bugs (wrong item state). Use a real id.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>How do you do conditional rendering?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <pre><code>{isLoggedIn ? &lt;Dashboard /&gt; : &lt;SignIn /&gt;}
+{error &amp;&amp; &lt;p className="error"&gt;{error}&lt;/p&gt;}</code></pre>
+              <p class="muted">Gotcha: <code>{count &amp;&amp; &lt;X/&gt;}</code> renders <code>0</code> when count is 0. Prefer <code>{count &gt; 0 &amp;&amp; &lt;X/&gt;}</code>.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is composition, and why prefer it over inheritance?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>React builds UIs by <strong>composing</strong> components (passing children/props), not by class inheritance. It's more flexible: a <code>&lt;Dialog&gt;</code> can accept any content via <code>children</code> rather than subclassing.</p>
+              <p>PrintArtZ's <code>Card</code>, <code>Button</code>, etc. are composed together on each page.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= STATE ================= -->
+        <section class="panel" data-panel="state">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What is state? How is it different from props?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Props</strong> come from the parent and are read-only. <strong>State</strong> is data a component owns and can change over time; changing it re-renders the component.</p>
+              <pre><code>const [count, setCount] = useState(0);
+&lt;button onClick={() =&gt; setCount(count + 1)}&gt;{count}&lt;/button&gt;</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why must state updates be immutable?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>React decides whether to re-render by comparing references. If you mutate an object/array in place, the reference is unchanged and React may skip the update. Always create a new object/array.</p>
+              <pre><code>// ❌ mutates
+todos.push(newTodo); setTodos(todos);
+// ✅ new array
+setTodos([...todos, newTodo]);</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is a controlled component?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A form input whose value is driven by React state (single source of truth). PrintArtZ's /create form uses this.</p>
+              <pre><code>const [text, setText] = useState("");
+&lt;textarea value={text} onChange={(e) =&gt; setText(e.target.value)} /&gt;</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What does “lifting state up” mean?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>When two components need the same data, move the state to their nearest common parent and pass it down via props (plus setter callbacks). This keeps a single source of truth.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Why can state updates look “one step behind”, and how do functional updates fix it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>State is a snapshot for that render; <code>count</code> holds the value from when the render ran. Multiple updates using the stale value collapse into one.</p>
+              <pre><code>// ❌ both read the same snapshot -> +1
+setCount(count + 1); setCount(count + 1);
+// ✅ functional update uses latest -> +2
+setCount((c) =&gt; c + 1); setCount((c) =&gt; c + 1);</code></pre>
+              <p class="muted">React also <strong>batches</strong> multiple setState calls in an event handler into one re-render.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= HOOKS ================= -->
+        <section class="panel" data-panel="hooks">
+          <div class="qa"><button><span><span class="lvl basic">Basic</span>What are the Rules of Hooks?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>1) Only call hooks at the <strong>top level</strong> — never inside loops, conditions, or nested functions. 2) Only call them from <strong>React function components or custom hooks</strong>. React relies on call order being identical every render.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What is <code>useEffect</code> and its dependency array?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>useEffect</code> runs side effects (data fetching, subscriptions, timers) <em>after</em> render. The dependency array controls when it re-runs.</p>
+              <pre><code>useEffect(() =&gt; {
+  const id = setInterval(tick, 1000);
+  return () =&gt; clearInterval(id); // cleanup
+}, []); // [] = run once on mount</code></pre>
+              <p class="muted"><code>[]</code> = once; <code>[x]</code> = when x changes; omitted = every render.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>Why does an effect need a cleanup function?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>To undo what the effect set up (clear timers, remove listeners, cancel subscriptions) before the next run and on unmount — preventing leaks and duplicate work.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span><code>useRef</code> — what is it for?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A mutable box whose <code>.current</code> persists across renders <strong>without</strong> causing re-renders. Two uses: referencing a DOM node, or storing a mutable value (like a timer id).</p>
+              <pre><code>const inputRef = useRef(null);
+&lt;input ref={inputRef} /&gt;
+inputRef.current.focus();</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span><code>useMemo</code> vs <code>useCallback</code> — when to use them?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><code>useMemo</code> caches a computed <strong>value</strong>; <code>useCallback</code> caches a <strong>function</strong> identity. Use them to avoid expensive recompute or to keep stable props for memoized children — not everywhere (premature optimization adds noise).</p>
+              <pre><code>const total = useMemo(() =&gt; heavy(items), [items]);
+const onPick = useCallback((id) =&gt; setSel(id), []);</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is <code>useContext</code> and when would you use it?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Context shares values (theme, current user) down the tree without “prop drilling”. Create a context, wrap with a Provider, read with <code>useContext</code>.</p>
+              <pre><code>const ThemeCtx = createContext("light");
+&lt;ThemeCtx.Provider value="dark"&gt;&lt;App /&gt;&lt;/ThemeCtx.Provider&gt;
+const theme = useContext(ThemeCtx);</code></pre>
+              <p class="muted">Overusing context for fast-changing state can cause wide re-renders — for that, a state library or local state is better.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span><code>useState</code> vs <code>useReducer</code>?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Use <code>useReducer</code> when state is complex or the next state depends on the previous one via clear “actions”. It centralizes update logic like Redux, locally.</p>
+              <pre><code>const [state, dispatch] = useReducer(reducer, { count: 0 });
+dispatch({ type: "inc" });</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is a custom hook? Give an example.</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A function starting with <code>use</code> that composes other hooks to reuse stateful logic.</p>
+              <pre><code>function useToggle(initial = false) {
+  const [on, setOn] = useState(initial);
+  const toggle = useCallback(() =&gt; setOn((v) =&gt; !v), []);
+  return [on, toggle] as const;
+}</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= PERFORMANCE ================= -->
+        <section class="panel" data-panel="perf">
+          <div class="qa"><button><span><span class="lvl mid">Intermediate</span>What causes a component to re-render?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>1) Its own state changed, 2) its parent re-rendered, or 3) a context it consumes changed. A parent re-render re-renders children by default (even if their props are equal) unless memoized.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What does <code>React.memo</code> do?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Wraps a component so it skips re-rendering when its props are shallow-equal to last time. Pair with <code>useCallback</code>/<code>useMemo</code> so passed props keep stable identity.</p>
+              <pre><code>const Row = React.memo(function Row({ item }) { ... });</code></pre>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>How do you code-split / lazy-load in React?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <pre><code>const Heavy = React.lazy(() =&gt; import("./Heavy"));
+&lt;Suspense fallback={&lt;Spinner /&gt;}&gt;&lt;Heavy /&gt;&lt;/Suspense&gt;</code></pre>
+              <p>This ships less JS up front and loads the chunk on demand. Next.js does route-level splitting automatically.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>What is an Error Boundary?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>A component that catches render errors in its subtree and shows a fallback instead of crashing the whole app. In Next.js App Router you use an <code>error.tsx</code> file per route segment.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Server Components vs Client Components (React 19 / Next.js)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>Server Components</strong> render on the server, can access the DB/secrets directly, and ship zero JS for themselves. <strong>Client Components</strong> (marked <code>"use client"</code>) run in the browser and can use state/effects/handlers.</p>
+              <p>PrintArtZ's <code>/create</code> page is a server component (checks auth, reads quota) that renders a <code>"use client"</code> form (<code>CreateForm</code>) for interactivity.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Advanced</span>Common React performance pitfalls?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li>New object/array/function literals as props on every render (breaks memoization).</li>
+                <li>Index-as-key on dynamic lists.</li>
+                <li>Huge context values causing wide re-renders.</li>
+                <li>Not colocating state (state too high up re-renders too much).</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= WHY ================= -->
+        <section class="panel" data-panel="why">
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>React vs plain JavaScript (vanilla)?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>React</h4><p class="muted">Declarative, component reuse, state-driven updates, huge ecosystem. Overhead + build step.</p></div>
+                <div><h4>Vanilla JS</h4><p class="muted">No dependencies, tiny for simple pages. Gets unmaintainable as interactivity grows.</p></div>
+              </div>
+              <p>Use React when the UI is stateful and component-heavy (like PrintArtZ). For a static page, vanilla is fine.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl mid">Compare</span>React vs Angular vs Vue?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <div class="vs">
+                <div><h4>React</h4><p class="muted">Library, JSX, unopinionated, biggest ecosystem/jobs.</p></div>
+                <div><h4>Angular</h4><p class="muted">Full framework, TypeScript-first, opinionated, steeper learning curve.</p></div>
+              </div>
+              <p class="muted">Vue sits in between — approachable, template-based, single-file components. All three are component-based with reactivity; the choice is often team/ecosystem driven.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>CSR vs SSR vs SSG — and what does React/Next.js use?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <ul>
+                <li><strong>CSR</strong> (client-side render): browser downloads JS, then renders. Fast navigation, slower first paint, weaker SEO.</li>
+                <li><strong>SSR</strong> (server-side render): server sends HTML per request. Better first paint + SEO.</li>
+                <li><strong>SSG</strong> (static): HTML built once at deploy. Fastest, best for content that rarely changes.</li>
+              </ul>
+              <p>Next.js lets you mix all three per route. PrintArtZ's dynamic pages are server-rendered on demand.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl adv">Compare</span>When would you NOT use React?</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p>Simple static/marketing sites (plain HTML/CSS or a static generator), tiny widgets where the React runtime is overkill, or teams standardized on another framework. Don't add React just to add it.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <a href="../index.html">← Back to the training guide</a> · React study guide
+      </footer>
+    </div>
+    <script src="../tutorial.js"></script>
+  </body>
+</html>

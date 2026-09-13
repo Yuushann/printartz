@@ -4,253 +4,190 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PrintArtZ — Project Training Guide</title>
-    <style>
-      :root {
-        --bg: #0f1020; --panel: #191a2e; --panel2: #21223c; --ink: #ececf5;
-        --muted: #a0a1bd; --line: #2c2d4a; --fuchsia: #d946ef; --violet: #8b5cf6;
-        --sky: #38bdf8; --emerald: #34d399; --amber: #fbbf24; --red: #f87171;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0; background: radial-gradient(1200px 600px at 20% -10%, #1e1b4b 0%, var(--bg) 55%);
-        color: var(--ink); font: 16px/1.6 ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-      }
-      .wrap { max-width: 960px; margin: 0 auto; padding: 40px 20px 80px; }
-      .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
-        background: linear-gradient(90deg, var(--fuchsia), var(--sky)); color: #0b0b17; }
-      h1 { font-size: 40px; margin: 16px 0 6px; }
-      h1 .g { background: linear-gradient(90deg, var(--fuchsia), var(--violet), var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-      h2 { font-size: 26px; margin: 48px 0 6px; }
-      h2 .g { background: linear-gradient(90deg, var(--emerald), var(--sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-      .lead { color: var(--muted); max-width: 720px; }
-      .note { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 18px 0; color: var(--muted); }
-      .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
-      @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
-      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
-      .card h3 { margin: 0 0 4px; font-size: 18px; }
-      .card .role { font-size: 12px; color: var(--violet); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-      .card p { margin: 8px 0; color: var(--ink); }
-      .card .why { color: var(--muted); font-size: 14px; }
-      .kw { display: inline-block; margin-top: 10px; font-size: 12px; color: var(--sky); }
-      .kw code { background: var(--panel2); padding: 2px 8px; border-radius: 6px; }
-      /* services */
-      .svc { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-        background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
-      .svc .meta { font-size: 13px; color: var(--muted); }
-      .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: var(--muted); }
-      .dot.ok { background: var(--emerald); box-shadow: 0 0 10px var(--emerald); }
-      .dot.down { background: var(--red); box-shadow: 0 0 10px var(--red); }
-      .dot.pending { background: var(--amber); animation: blink 1s infinite; }
-      @keyframes blink { 50% { opacity: .3; } }
-      .status-text { font-size: 13px; font-weight: 700; min-width: 92px; text-align: right; }
-      button.btn { cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; color: #0b0b17;
-        background: linear-gradient(90deg, var(--fuchsia), var(--violet)); }
-      button.btn:disabled { opacity: .6; cursor: default; }
-      button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); }
-      /* flow */
-      .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin: 16px 0; }
-      .step { flex: 1 1 150px; min-width: 150px; background: var(--panel); border: 2px solid var(--line);
-        border-radius: 14px; padding: 12px 14px; transition: all .35s ease; position: relative; }
-      .step .n { position: absolute; top: -10px; left: -10px; width: 24px; height: 24px; border-radius: 50%;
-        background: var(--panel2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
-      .step .t { font-weight: 700; font-size: 14px; }
-      .step .d { font-size: 12px; color: var(--muted); margin-top: 4px; }
-      .step.active { border-color: var(--fuchsia); box-shadow: 0 0 0 3px rgba(217,70,239,.25), 0 0 24px rgba(217,70,239,.35); transform: translateY(-3px); }
-      .step.done { border-color: var(--emerald); }
-      .arrow { align-self: center; color: var(--muted); font-size: 20px; }
-      .controls { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
-      footer { margin-top: 60px; color: var(--muted); font-size: 13px; text-align: center; border-top: 1px solid var(--line); padding-top: 20px; }
-      .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
-      .toc a { font-size: 13px; color: var(--sky); text-decoration: none; background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; border-radius: 999px; }
-    </style>
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <div class="wrap">
       <span class="badge">Internal study guide · not part of the live site</span>
       <h1>PrintArtZ — <span class="g">Project Training Guide</span></h1>
       <p class="lead">
-        Welcome! Think of this as a mini 3-month "real project" course. PrintArtZ is a
-        website where parents describe a school art project and get a printable image.
-        This guide explains <strong>every technology we use</strong>, in plain English —
-        assuming you know nothing yet. Each card has a keyword to Google when you want to
-        go deeper.
+        A hands-on "learn a real full-stack project" course. Understand how PrintArtZ is
+        built, then study each technology in an interview Q&amp;A format — from basics to
+        advanced — so you could walk into a full-stack interview and explain it all.
       </p>
 
-      <div class="toc">
-        <a href="#stack">🧱 Tech stack</a>
-        <a href="#services">🧩 Services + status</a>
-        <a href="#login">🔐 Login flow</a>
-        <a href="#data">🔄 Data flow</a>
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab" data-tab="start">🚀 Start here</button>
+          <button class="tab" data-tab="arch">🏗️ How PrintArtZ works</button>
+          <button class="tab" data-tab="topics">📚 Study topics</button>
+        </div>
+
+        <!-- START -->
+        <section class="panel" data-panel="start">
+          <div class="note">
+            <strong>Big picture:</strong> a website has two halves — the
+            <strong>frontend</strong> (what you see in the browser) and the
+            <strong>backend</strong> (code on a server that talks to databases and other
+            services). PrintArtZ keeps both in one codebase (Next.js) and calls out to
+            specialist services (a database, an AI image generator, a payment company…).
+          </div>
+          <h2>How to use this guide</h2>
+          <p class="lead">
+            Start with <strong>How PrintArtZ works</strong> to see the moving parts, then
+            open a <strong>Study topic</strong>. Each topic is a set of interview-style
+            questions with answers and real code — click a question to expand it.
+          </p>
+          <div class="note">
+            🎯 <strong>Goal:</strong> after finishing the topics you should be comfortable
+            with TypeScript, React, Next.js, PostgreSQL, ORMs, CI/CD, servers/hosting and
+            AI app concepts — the exact stack this project uses.
+          </div>
+        </section>
+
+        <!-- ARCHITECTURE -->
+        <section class="panel" data-panel="arch">
+          <h2>🧩 The stack at a glance</h2>
+          <p class="lead">Deep dives live under <em>Study topics</em>. Quick map:</p>
+          <div class="grid" id="stackGrid"></div>
+
+          <h2>🔐 How login works</h2>
+          <div class="vflow" id="loginFlow"></div>
+
+          <h2>🔄 Data flow — generating an image</h2>
+          <div class="vflow" id="dataFlow"></div>
+
+          <h2>📡 Services &amp; a live-ish status check</h2>
+          <p class="lead">
+            These outside services power the app. The button runs <em>dummy pulse-check
+            scripts</em> (simulated) that pretend to ping each one.
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;margin:12px 0">
+            <button class="btn" id="refreshBtn">🔄 Refresh status</button>
+            <span class="meta" id="refreshMeta">Not checked yet.</span>
+          </div>
+          <div id="svcList"></div>
+        </section>
+
+        <!-- TOPICS -->
+        <section class="panel" data-panel="topics">
+          <h2>📚 Study topics</h2>
+          <p class="lead">Interview-style Q&amp;A, basics → advanced, with code. More added over time.</p>
+          <div class="grid" id="topicGrid"></div>
+        </section>
       </div>
 
-      <div class="note">
-        <strong>Big picture:</strong> A <em>website</em> has two halves — the
-        <strong>frontend</strong> (what you see in the browser) and the
-        <strong>backend</strong> (code on a server that talks to databases and other
-        companies' services). PrintArtZ's frontend and backend live in one codebase
-        (Next.js), and it calls out to specialist services (a database, an AI image
-        generator, a payment company, etc.).
-      </div>
-
-      <h2 id="stack">🧱 <span class="g">Tech stack</span> — what each piece is</h2>
-      <p class="lead">Read top-to-bottom; each builds on the last.</p>
-      <div class="grid" id="stackGrid"></div>
-
-      <h2 id="services">🧩 <span class="g">Services</span> &amp; a live-ish status check</h2>
-      <p class="lead">
-        These are outside companies we depend on. The button below runs
-        <em>dummy pulse-check scripts</em> (simulated for this guide) that pretend to ping
-        each service and report whether it's up.
-      </p>
-      <div class="controls">
-        <button class="btn" id="refreshBtn">🔄 Refresh status</button>
-        <span class="meta" id="refreshMeta">Not checked yet.</span>
-      </div>
-      <div id="svcList" style="margin-top:12px"></div>
-
-      <h2 id="login">🔐 <span class="g">How login works</span></h2>
-      <p class="lead">Press play to watch a sign-in travel step by step.</p>
-      <div class="flow" id="loginFlow"></div>
-      <div class="controls">
-        <button class="btn" onclick="playFlow('loginFlow')">▶ Play</button>
-        <button class="ghost btn" onclick="resetFlow('loginFlow')">Reset</button>
-      </div>
-
-      <h2 id="data">🔄 <span class="g">Data flow</span> — generating an image</h2>
-      <p class="lead">This is what happens when a parent clicks "Generate".</p>
-      <div class="flow" id="dataFlow"></div>
-      <div class="controls">
-        <button class="btn" onclick="playFlow('dataFlow')">▶ Play</button>
-        <button class="ghost btn" onclick="resetFlow('dataFlow')">Reset</button>
-      </div>
-
-      <footer>PrintArtZ project training guide · keep this updated as the project grows.</footer>
+      <footer>PrintArtZ project training guide · grows as the project grows.</footer>
     </div>
 
+    <script src="./tutorial.js"></script>
     <script>
-      // ---- Tech stack ----
+      // Stack map (short; full study is in the topic pages)
       const STACK = [
-        { name: "The web, in one line", role: "Concept", what: "A browser (Chrome/Firefox) asks a server for a page; the server sends back HTML/CSS/JS; the browser draws it. Everything below is just tools to build those two sides well.", why: "Grounds everything else.", kw: "how websites work client server" },
-        { name: "HTML / CSS / JavaScript", role: "Foundation", what: "HTML is the content/structure, CSS is the styling (colors, layout), JavaScript is the behavior (clicks, logic). Every website is ultimately these three.", why: "All our fancier tools compile down to these.", kw: "html css javascript basics" },
-        { name: "TypeScript", role: "Language", what: "JavaScript with type-checking. You label what kind of data things are (text, number, a User), and the editor catches mistakes before you run the code.", why: "Fewer bugs across a big codebase.", kw: "typescript for beginners" },
-        { name: "React", role: "UI library", what: "A way to build screens out of reusable 'components' (like Lego blocks). When data changes, React re-draws just the parts that changed.", why: "Our whole UI is React components.", kw: "react components props state" },
-        { name: "Next.js", role: "Framework", what: "A full framework built on React. It handles page routing (URLs), running code on the server, and building the app for production. It hosts BOTH our frontend and our backend API.", why: "One tool for the whole app.", kw: "nextjs app router" },
-        { name: "Tailwind CSS", role: "Styling", what: "Instead of writing separate CSS files, you add small utility classes right in the HTML (e.g. 'text-center', 'p-4'). Fast and consistent.", why: "Speeds up styling; used everywhere.", kw: "tailwind css utility classes" },
-        { name: "shadcn/ui", role: "Components", what: "A set of ready-made, good-looking UI pieces (buttons, cards, inputs) built on Tailwind that you copy into your project and own.", why: "Consistent, accessible UI.", kw: "shadcn ui" },
-        { name: "pnpm + monorepo", role: "Project setup", what: "pnpm installs code libraries. A 'monorepo' keeps several related packages (web app, database code, shared code, AI code) in ONE repository so they share easily.", why: "apps/web + packages/{shared,db,ai}.", kw: "pnpm workspaces monorepo" },
-        { name: "PostgreSQL", role: "Database", what: "A database stores data in tables (like spreadsheets) — users, projects, payments. PostgreSQL is a popular, reliable one.", why: "Our source of truth for data.", kw: "postgresql relational database" },
-        { name: "Supabase", role: "Hosted DB + storage", what: "A company that hosts our PostgreSQL database for us (no server to manage) and also stores files (images). Think 'database + file storage in the cloud'.", why: "Our DB + file storage.", kw: "supabase" },
-        { name: "Prisma", role: "ORM", what: "An 'ORM' lets us talk to the database using normal code (prisma.user.findMany()) instead of raw SQL. We use the engine-free version so it runs on any computer, including ARM laptops.", why: "Safe, typed database access.", kw: "prisma orm" },
-        { name: "Zod", role: "Validation", what: "Checks that incoming data has the right shape before we trust it (e.g. 'instruction must be text, 3–2000 chars'). Rejects junk early.", why: "Guards our API inputs.", kw: "zod schema validation" },
-        { name: "Auth.js (NextAuth)", role: "Login", what: "Handles the whole 'sign in' process: talking to Google, creating a session, remembering who you are via a cookie.", why: "Our authentication system.", kw: "authjs nextauth v5" },
-        { name: "Google OAuth", role: "Identity", what: "'OAuth' is the standard that lets you log in with your Google account without giving us your password. Google vouches for who you are.", why: "How parents sign in.", kw: "google oauth 2.0" },
-        { name: "OpenAI (gpt-image-1)", role: "AI", what: "The AI model that turns a text prompt into an image. We send a carefully written prompt; it returns a picture.", why: "Generates the project images.", kw: "openai image generation api" },
-        { name: "Redis + BullMQ (planned)", role: "Job queue", what: "Redis is a super-fast in-memory store. BullMQ uses it as a 'to-do list' (queue) so slow image jobs run in the background without freezing the website.", why: "For heavy generation later.", kw: "bullmq redis queue" },
-        { name: "Razorpay", role: "Payments", what: "An Indian payments company. It handles cards/UPI securely so we never touch raw card details. 'Test mode' lets us build without real money.", why: "Paid generations & downloads.", kw: "razorpay payment gateway" },
-        { name: "Resend (planned)", role: "Email", what: "A service that sends emails from our app (login links, receipts) reliably so they don't land in spam.", why: "Transactional email.", kw: "resend email api" },
-        { name: "Vercel (planned)", role: "Hosting", what: "The company that will run our website on the internet, deploying automatically every time we push code.", why: "Where the site will live.", kw: "vercel deployment nextjs" },
+        ["Language", "TypeScript", "JavaScript with type-checking to catch bugs early."],
+        ["UI library", "React", "Build screens from reusable components."],
+        ["Framework", "Next.js", "React + routing + a backend, in one codebase."],
+        ["Styling", "Tailwind + shadcn/ui", "Utility CSS + ready-made components."],
+        ["Database", "PostgreSQL (Supabase)", "Stores users, projects, payments."],
+        ["ORM", "Prisma", "Talk to the DB with typed code, not raw SQL."],
+        ["Auth", "Auth.js + Google", "Sign in without handling passwords."],
+        ["AI", "OpenAI", "Text model plans the prompt; image model draws it."],
+        ["Payments", "Razorpay", "Handles cards/UPI securely."],
+        ["Hosting", "Vercel (planned)", "Runs the site and auto-deploys on push."],
       ];
-      const grid = document.getElementById("stackGrid");
-      grid.innerHTML = STACK.map(s => `
-        <div class="card">
-          <div class="role">${s.role}</div>
-          <h3>${s.name}</h3>
-          <p>${s.what}</p>
-          <p class="why"><strong>In PrintArtZ:</strong> ${s.why}</p>
-          <div class="kw">🔎 Google: <code>${s.kw}</code></div>
-        </div>`).join("");
+      document.getElementById("stackGrid").innerHTML = STACK.map(
+        ([role, name, what]) =>
+          `<div class="card"><div class="role">${role}</div><h3>${name}</h3><p>${what}</p></div>`,
+      ).join("");
 
-      // ---- Services + dummy pulse checks ----
-      const SERVICES = [
-        { name: "Supabase (database)", note: "Postgres + file storage", baseUp: true },
-        { name: "OpenAI (AI images)", note: "gpt-image-1", baseUp: true },
-        { name: "Upstash Redis (queue)", note: "job backend", baseUp: true },
-        { name: "Google OAuth (login)", note: "identity provider", baseUp: true },
-        { name: "Razorpay (payments)", note: "test mode", baseUp: true },
-        { name: "Resend (email)", note: "not set up yet", baseUp: false },
-      ];
-      const svcList = document.getElementById("svcList");
-      function renderServices(states) {
-        svcList.innerHTML = SERVICES.map((s, i) => {
-          const st = states[i] || { cls: "", text: "—" };
-          return `<div class="svc">
-            <div><span class="dot ${st.cls}"></span><strong>${s.name}</strong>
-              <div class="meta">${s.note}</div></div>
-            <div class="status-text">${st.text}</div>
-          </div>`;
-        }).join("");
-      }
-      renderServices(SERVICES.map(() => ({ cls: "", text: "—" })));
-
-      const refreshBtn = document.getElementById("refreshBtn");
-      refreshBtn.addEventListener("click", async () => {
-        refreshBtn.disabled = true;
-        document.getElementById("refreshMeta").textContent = "Pinging services…";
-        renderServices(SERVICES.map(() => ({ cls: "pending", text: "checking…" })));
-        // DUMMY pulse-check: pretend each ping takes a moment and usually succeeds.
-        const results = [];
-        for (let i = 0; i < SERVICES.length; i++) {
-          await new Promise(r => setTimeout(r, 350 + Math.random() * 500));
-          const up = SERVICES[i].baseUp && Math.random() > 0.08; // small random flake
-          results[i] = up
-            ? { cls: "ok", text: "operational" }
-            : (SERVICES[i].baseUp ? { cls: "down", text: "degraded" } : { cls: "pending", text: "pending setup" });
-          renderServices(SERVICES.map((_, k) => k <= i ? results[k] : { cls: "pending", text: "checking…" }));
-        }
-        document.getElementById("refreshMeta").textContent = "Last checked: " + new Date().toLocaleTimeString() + " (simulated)";
-        refreshBtn.disabled = false;
-      });
-
-      // ---- Animated flows ----
+      // Vertical flows (no numbers, no play/reset)
       const FLOWS = {
         loginFlow: [
-          { t: "Click “Sign in”", d: "A button on our site starts it." },
-          { t: "Redirect to Google", d: "Auth.js sends you to Google." },
-          { t: "You approve", d: "Google shows the consent screen." },
-          { t: "Back to us + code", d: "Google redirects to /api/auth/callback with a code." },
-          { t: "Exchange for profile", d: "Our server swaps the code for your name/email." },
-          { t: "Save to database", d: "Prisma writes User + Account + Session." },
-          { t: "You're in!", d: "A cookie remembers you." },
+          ["Click “Sign in”", "A button on our site starts it."],
+          ["Redirect to Google", "Auth.js hands you to Google."],
+          ["You approve", "Google shows the consent screen."],
+          ["Back to us + code", "Google redirects to /api/auth/callback with a code."],
+          ["Exchange for profile", "Our server swaps the code for your name/email."],
+          ["Save to database", "Prisma writes User + Account + Session."],
+          ["You're in", "A cookie remembers you on every request."],
         ],
         dataFlow: [
-          { t: "/create form", d: "You type the instruction + options." },
-          { t: "POST /api/generate", d: "Browser sends it to our backend." },
-          { t: "Auth + validate", d: "Check you're logged in; Zod checks input." },
-          { t: "Check quota", d: "Do you have free generations left?" },
-          { t: "Save request", d: "Prisma writes ProjectRequest + Job." },
-          { t: "Call OpenAI", d: "gpt-image-1 draws the image." },
-          { t: "Return + show", d: "Image sent back; preview appears." },
+          ["/create form", "You paste the instruction + options (and optional sample images)."],
+          ["POST /api/generate", "Browser sends it to our backend."],
+          ["Auth + validate", "Check you're signed in; Zod checks the input."],
+          ["Guardrail + plan", "gpt-4o-mini rejects junk and writes a clean image prompt."],
+          ["Check quota & save", "Prisma records the ProjectRequest + Job."],
+          ["Draw the image", "gpt-image-1 (with your samples, if any) renders it."],
+          ["Return + preview", "Image sent back and shown; quota decremented."],
         ],
       };
-      function buildFlow(id) {
-        const el = document.getElementById(id);
-        const steps = FLOWS[id];
-        el.innerHTML = steps.map((s, i) =>
-          `<div class="step" data-i="${i}"><span class="n">${i + 1}</span>
-             <div class="t">${s.t}</div><div class="d">${s.d}</div></div>` +
-          (i < steps.length - 1 ? `<div class="arrow">➜</div>` : "")
-        ).join("");
+      for (const [id, steps] of Object.entries(FLOWS)) {
+        document.getElementById(id).innerHTML = steps
+          .map(
+            ([t, d], i) =>
+              `<div class="vnode"><div class="t">${t}</div><div class="d">${d}</div></div>` +
+              (i < steps.length - 1 ? `<div class="vconn"></div>` : ""),
+          )
+          .join("");
       }
-      function resetFlow(id) {
-        buildFlow(id);
-      }
-      let timers = {};
-      function playFlow(id) {
-        resetFlow(id);
-        const nodes = [...document.querySelectorAll(`#${id} .step`)];
-        clearInterval(timers[id]);
-        let i = 0;
-        timers[id] = setInterval(() => {
-          nodes.forEach(n => n.classList.remove("active"));
-          if (i > 0) nodes[i - 1].classList.add("done");
-          if (i >= nodes.length) { clearInterval(timers[id]); return; }
-          nodes[i].classList.add("active");
-          nodes[i].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-          i++;
-        }, 850);
-      }
-      buildFlow("loginFlow");
-      buildFlow("dataFlow");
+
+      // Study topic cards
+      const TOPICS = [
+        ["React", "react", true, "Components, props, state, hooks, performance, why React."],
+        ["TypeScript", "typescript", false, "Types, generics, narrowing, utility types."],
+        ["Next.js", "nextjs", false, "App Router, server vs client, routing, rendering."],
+        ["PostgreSQL", "postgresql", false, "SQL, indexes, transactions, why Postgres vs others."],
+        ["ORMs & Prisma", "orms", false, "What an ORM is, migrations, N+1, when to use raw SQL."],
+        ["CI/CD", "cicd", false, "Pipelines, GitHub Actions, testing, deployments."],
+        ["Servers & Hosting", "servers", false, "Client/server, serverless, workers, queues."],
+        ["AI app concepts", "ai", false, "Prompts, tokens, guardrails, vision, cost control."],
+        ["Auth & OAuth", "auth", false, "Sessions vs JWT, OAuth 2.0, cookies, security."],
+        ["Web fundamentals", "web-basics", false, "HTTP, HTML/CSS/JS, the browser, REST."],
+      ];
+      document.getElementById("topicGrid").innerHTML = TOPICS.map(
+        ([name, slug, ready, desc]) =>
+          ready
+            ? `<a class="card" href="./topics/${slug}.html"><h3>${name}</h3><p>${desc}</p><span class="pill ready">Ready ✓</span></a>`
+            : `<div class="card"><h3>${name}</h3><p>${desc}</p><span class="pill soon">Coming soon</span></div>`,
+      ).join("");
+
+      // Dummy pulse-check
+      const SERVICES = [
+        ["Supabase (database)", "Postgres + file storage", true],
+        ["OpenAI (AI)", "text + image models", true],
+        ["Upstash Redis (queue)", "job backend", true],
+        ["Google OAuth (login)", "identity provider", true],
+        ["Razorpay (payments)", "test mode", true],
+        ["Resend (email)", "not set up yet", false],
+      ];
+      const svcList = document.getElementById("svcList");
+      const render = (states) => {
+        svcList.innerHTML = SERVICES.map((s, i) => {
+          const st = states[i] || { cls: "", text: "—" };
+          return `<div class="svc"><div><span class="dot ${st.cls}"></span><strong>${s[0]}</strong><div class="meta">${s[1]}</div></div><div class="status-text">${st.text}</div></div>`;
+        }).join("");
+      };
+      render(SERVICES.map(() => ({ cls: "", text: "—" })));
+      const btn = document.getElementById("refreshBtn");
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        document.getElementById("refreshMeta").textContent = "Pinging services…";
+        render(SERVICES.map(() => ({ cls: "pending", text: "checking…" })));
+        const results = [];
+        for (let i = 0; i < SERVICES.length; i++) {
+          await new Promise((r) => setTimeout(r, 300 + Math.random() * 450));
+          const up = SERVICES[i][2] && Math.random() > 0.08;
+          results[i] = up
+            ? { cls: "ok", text: "operational" }
+            : SERVICES[i][2]
+              ? { cls: "down", text: "degraded" }
+              : { cls: "pending", text: "pending setup" };
+          render(SERVICES.map((_, k) => (k <= i ? results[k] : { cls: "pending", text: "checking…" })));
+        }
+        document.getElementById("refreshMeta").textContent =
+          "Last checked: " + new Date().toLocaleTimeString() + " (simulated)";
+        btn.disabled = false;
+      });
     </script>
   </body>
 </html>
