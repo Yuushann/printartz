@@ -58,8 +58,9 @@ enum PaymentStatus {
 // ------------------------------------------------------------------ auth (NextAuth/Auth.js)
 
 model User {
-  id                  String   @id @default(cuid())
-  email               String   @unique
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  emailVerified       DateTime? // required by the Auth.js/NextAuth adapter
   name                String?
   image               String?
   role                Role     @default(USER)
