@@ -21,21 +21,26 @@ const STEPS = [
 
 // Scattered floating decorations (transparent die-cut stickers).
 function Decor() {
-  // Kept to the far edges (never center) and lightweight for smooth scrolling.
+  // Balanced on BOTH edges (never center); transform-only animation.
   const items = [
     { src: "/art/crayons.png", cls: "left-[2%] top-[14%] w-16 sm:w-24", rot: "-8deg", delay: "0s" },
+    { src: "/art/paint-splash.png", cls: "left-[3%] top-[62%] w-16 sm:w-24", rot: "6deg", delay: "0.8s" },
     { src: "/art/star.png", cls: "right-[3%] top-[10%] w-14 sm:w-20", rot: "10deg", delay: "1.2s" },
     { src: "/art/rainbow.png", cls: "right-[2%] top-[58%] w-20 sm:w-28", rot: "-4deg", delay: "1.8s" },
+    { src: "/art/pencil.png", cls: "left-[1%] top-[38%] w-12 sm:w-16", rot: "14deg", delay: "0.4s" },
   ];
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden [contain:layout_paint]"
+    >
       {items.map((it) => (
         <img
           key={it.src}
           src={it.src}
           alt=""
           style={{ animationDelay: it.delay, "--rot": it.rot } as React.CSSProperties}
-          className={cn("animate-floaty absolute opacity-80 [will-change:transform]", it.cls)}
+          className={cn("animate-floaty absolute opacity-80", it.cls)}
         />
       ))}
     </div>
@@ -103,7 +108,7 @@ export default function Home() {
               src="/art/fox.png"
               alt=""
               aria-hidden
-              className="animate-floaty absolute -right-6 -bottom-6 w-20 [will-change:transform] sm:w-28"
+              className="animate-floaty absolute -right-6 -bottom-6 w-20 sm:w-28"
             />
           </div>
         </section>

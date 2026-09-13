@@ -2,6 +2,13 @@ import { PROJECT_CATEGORIES, STYLES, type ProjectRequestInput } from "@printartz
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
+const OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits";
+
+/** A reference image uploaded by the parent (e.g. the school's sample). */
+export interface ReferenceImage {
+  data: ArrayBuffer;
+  mime: string;
+}
 
 export const REJECTION_MESSAGE =
   "This request does not meet the criteria for school project image generation. Please provide instructions for a printable kids' art or school project image.";
@@ -140,6 +147,47 @@ export async function generateImageFromPrompt(
     error?: { message?: string };
   };
   if (!res.ok) throw new Error(json.error?.message ?? `OpenAI image error ${res.status}`);
+  const b64 = json.data?.[0]?.b64_json;
+  if (!b64) throw new Error("OpenAI returned no image data");
+  return { b64, model, prompt };
+}
+
+/**
+ * Generate using up to 2 reference images (the school's sample) as guidance,
+ * via the image-edits endpoint. Costs more (input image tokens) — caller limits count.
+ */
+export async function generateImageWithReferences(
+  imagePrompt: string,
+  images: ReferenceImage[],
+  opts?: { textContent?: string; size?: string },
+): Promise<GeneratedImage> {
+  const apiKey = requireKey();
+  const model = process.env.AI_IMAGE_MODEL || "gpt-image-1";
+  const prompt =
+    "Using the uploaded reference image(s) as a guide for the subject, layout and proportions, produce a clean printable version. " +
+    hardenImagePrompt(imagePrompt, opts?.textContent);
+
+  const form = new FormData();
+  form.append("model", model);
+  form.append("prompt", prompt);
+  form.append("size", opts?.size ?? "1024x1536");
+  form.append("quality", "low");
+  form.append("n", "1");
+  images.slice(0, 2).forEach((img, i) => {
+    const ext = img.mime.includes("png") ? "png" : img.mime.includes("webp") ? "webp" : "jpg";
+    form.append("image[]", new Blob([img.data], { type: img.mime }), `ref${i}.${ext}`);
+  });
+
+  const res = await fetch(OPENAI_IMAGE_EDITS_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` }, // let fetch set multipart boundary
+    body: form,
+  });
+  const json = (await res.json()) as {
+    data?: { b64_json?: string }[];
+    error?: { message?: string };
+  };
+  if (!res.ok) throw new Error(json.error?.message ?? `OpenAI edits error ${res.status}`);
   const b64 = json.data?.[0]?.b64_json;
   if (!b64) throw new Error("OpenAI returned no image data");
   return { b64, model, prompt };

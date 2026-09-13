@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import {
-  PROJECT_CATEGORIES,
-  PAPER_SIZES,
-  STYLES,
-} from "@printartz/shared";
+import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES } from "@printartz/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+
+const MAX_FILES = 2;
+
+type Ref = { file: File; url: string };
 
 export function CreateForm({ remaining: initialRemaining }: { remaining: number }) {
   const [instruction, setInstruction] = useState("");
@@ -19,12 +19,29 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [paperSize, setPaperSize] = useState("a4");
   const [style, setStyle] = useState("");
   const [paperColor, setPaperColor] = useState("");
+  const [refs, setRefs] = useState<Ref[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(initialRemaining);
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const incoming = Array.from(list).filter((f) => f.type.startsWith("image/"));
+    setRefs((prev) => {
+      const room = MAX_FILES - prev.length;
+      const added = incoming.slice(0, room).map((file) => ({ file, url: URL.createObjectURL(file) }));
+      return [...prev, ...added];
+    });
+  }
+  function removeRef(i: number) {
+    setRefs((prev) => {
+      URL.revokeObjectURL(prev[i].url);
+      return prev.filter((_, k) => k !== i);
+    });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,17 +54,15 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instruction,
-          category,
-          paperSize,
-          style: style || undefined,
-          paperColor: paperColor || undefined,
-        }),
-      });
+      const fd = new FormData();
+      fd.set("instruction", instruction);
+      fd.set("category", category);
+      fd.set("paperSize", paperSize);
+      if (style) fd.set("style", style);
+      if (paperColor) fd.set("paperColor", paperColor);
+      refs.forEach((r) => fd.append("images", r.file));
+
+      const res = await fetch("/api/generate", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.error ?? "Generation failed.");
@@ -74,8 +89,52 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
             id="instruction"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
-            placeholder="e.g. Make an A4 sheet with 6 fruit cutouts for a nursery project, cartoon style."
+            className="min-h-32"
+            placeholder="Paste the full school message here — the messier the better. e.g. 'For the Independence Day activity, make a tricolour kite with the Ashoka Chakra in the centre…'"
           />
+        </div>
+
+        {/* Reference images */}
+        <div className="space-y-2">
+          <Label htmlFor="images">
+            Sample image(s) from school <span className="text-muted-foreground font-normal">— optional, up to {MAX_FILES}</span>
+          </Label>
+          <div className="flex flex-wrap items-center gap-3">
+            {refs.map((r, i) => (
+              <div key={r.url} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.url} alt="reference" className="h-20 w-20 rounded-lg border object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeRef(i)}
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-white shadow"
+                  aria-label="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {refs.length < MAX_FILES && (
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed text-center text-xs text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5">
+                <span className="text-lg">＋</span>
+                Add image
+                <input
+                  id="images"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    addFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-muted-foreground text-xs">
+            If the school shared a sample picture, add it — we&apos;ll match it more closely.
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -161,16 +220,12 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 unoptimized
                 className="w-full rounded-lg border"
               />
-              <a
-                href={image}
-                download="printartz.png"
-                className="text-sm font-medium text-fuchsia-600 hover:underline"
-              >
+              <a href={image} download="printartz.png" className="text-sm font-medium text-fuchsia-600 hover:underline">
                 Download prototype image ↓
               </a>
               <p className="text-muted-foreground text-xs">
-                Prototype preview — final print-accurate PDF export, watermarking
-                and paid download come in later phases.
+                Prototype preview — final print-accurate PDF export, watermarking and paid
+                download come in later phases.
               </p>
             </div>
           )}

@@ -81,18 +81,21 @@
   }
 }
 
-/* Floating cartoon decorations */
+/* Floating cartoon decorations — transform-only + own layer for smooth
+   compositing (Firefox is sensitive to repaints during scroll). */
 @keyframes floaty {
   0%,
   100% {
-    transform: translateY(0) rotate(var(--rot, 0deg));
+    transform: translate3d(0, 0, 0) rotate(var(--rot, 0deg));
   }
   50% {
-    transform: translateY(-16px) rotate(var(--rot, 0deg));
+    transform: translate3d(0, -10px, 0) rotate(var(--rot, 0deg));
   }
 }
 .animate-floaty {
-  animation: floaty 6s ease-in-out infinite;
+  animation: floaty 7s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
