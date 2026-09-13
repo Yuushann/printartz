@@ -21,12 +21,11 @@ const STEPS = [
 
 // Scattered floating decorations (transparent die-cut stickers).
 function Decor() {
+  // Kept to the far edges (never center) and lightweight for smooth scrolling.
   const items = [
-    { src: "/art/crayons.png", cls: "left-[3%] top-[12%] w-20 sm:w-28", rot: "-8deg", delay: "0s" },
-    { src: "/art/star.png", cls: "right-[6%] top-[8%] w-16 sm:w-24", rot: "10deg", delay: "1.2s" },
-    { src: "/art/paint-splash.png", cls: "left-[8%] top-[62%] w-20 sm:w-28", rot: "6deg", delay: "0.6s" },
-    { src: "/art/rainbow.png", cls: "right-[4%] top-[55%] w-24 sm:w-32", rot: "-4deg", delay: "1.8s" },
-    { src: "/art/pencil.png", cls: "left-[46%] top-[2%] w-14 sm:w-20", rot: "14deg", delay: "0.9s" },
+    { src: "/art/crayons.png", cls: "left-[2%] top-[14%] w-16 sm:w-24", rot: "-8deg", delay: "0s" },
+    { src: "/art/star.png", cls: "right-[3%] top-[10%] w-14 sm:w-20", rot: "10deg", delay: "1.2s" },
+    { src: "/art/rainbow.png", cls: "right-[2%] top-[58%] w-20 sm:w-28", rot: "-4deg", delay: "1.8s" },
   ];
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -36,7 +35,7 @@ function Decor() {
           src={it.src}
           alt=""
           style={{ animationDelay: it.delay, "--rot": it.rot } as React.CSSProperties}
-          className={cn("animate-floaty absolute opacity-80 drop-shadow-sm", it.cls)}
+          className={cn("animate-floaty absolute opacity-80 [will-change:transform]", it.cls)}
         />
       ))}
     </div>
@@ -104,14 +103,14 @@ export default function Home() {
               src="/art/fox.png"
               alt=""
               aria-hidden
-              className="animate-floaty absolute -bottom-8 -left-8 w-24 drop-shadow-md sm:w-28"
+              className="animate-floaty absolute -right-6 -bottom-6 w-20 [will-change:transform] sm:w-28"
             />
           </div>
         </section>
 
         {/* Example prompts teaser */}
         <section className="pb-8">
-          <div className="rounded-2xl border bg-white/70 p-6 text-center shadow-sm backdrop-blur dark:bg-white/5">
+          <div className="rounded-2xl border bg-white/85 p-6 text-center shadow-sm dark:bg-white/5">
             <p className="text-sm font-semibold text-fuchsia-600">Try prompts like…</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               {EXAMPLE_PROMPTS.map((p) => (
@@ -135,7 +134,7 @@ export default function Home() {
           <p className="text-muted-foreground mt-2 text-center">Three steps. No craft-store trip required.</p>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div key={s.title} className="relative rounded-2xl border bg-white/70 p-6 text-center shadow-sm backdrop-blur dark:bg-white/5">
+              <div key={s.title} className="relative rounded-2xl border bg-white/85 p-6 text-center shadow-sm dark:bg-white/5">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-violet-500 text-2xl">
                   {s.emoji}
                 </div>

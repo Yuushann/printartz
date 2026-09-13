@@ -8,7 +8,7 @@ export async function SiteHeader() {
   const user = session?.user;
 
   return (
-    <header className="sticky top-0 z-10 border-b border-black/5 bg-background/80 backdrop-blur-md dark:border-white/10">
+    <header className="sticky top-0 z-10 border-b border-black/5 bg-background dark:border-white/10">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
         <Link href="/" className="text-lg font-extrabold tracking-tight">
           <span className="bg-gradient-to-r from-fuchsia-600 via-violet-600 to-sky-500 bg-clip-text text-transparent">

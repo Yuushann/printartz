@@ -45,7 +45,7 @@ export const FREE_GENERATION_QUOTA = 10;
 
 /** Zod schema for a project-generation request (early draft). */
 export const projectRequestSchema = z.object({
-  instruction: z.string().min(3).max(2000),
+  instruction: z.string().min(3).max(4000),
   category: z.enum(["cutout", "coloring", "chart", "labels"]),
   paperSize: z.enum(["a4", "chart", "halfChart"]),
   style: z.enum(["realistic", "cartoon", "coloring-book", "sketch"]).optional(),

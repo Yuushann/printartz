@@ -1,19 +1,20 @@
 import { auth } from "@/auth";
 import { prisma } from "@printartz/db";
-import { generateProjectImage } from "@printartz/ai";
+import { planRequest, generateImageFromPrompt, REJECTION_MESSAGE } from "@printartz/ai";
 import { projectRequestSchema, FREE_GENERATION_QUOTA } from "@printartz/shared";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  // 1. Auth gate — must be signed in to generate.
+  // 1. Auth gate.
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) {
     return Response.json({ ok: false, error: "Please sign in first." }, { status: 401 });
   }
 
-  // 2. Validate input.
+  // 2. Validate input shape.
   const body = await req.json().catch(() => null);
   const parsed = projectRequestSchema.safeParse(body);
   if (!parsed.success) {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // 3. Free-quota check (paid generation arrives in Phase 5).
+  // 3. Free-quota check.
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { freeGenerationsUsed: true },
@@ -38,12 +39,40 @@ export async function POST(req: Request) {
     );
   }
 
-  // 4. Persist the request + job lifecycle.
+  // 4. Guardrail + prompt planning (cheap text model). Rejections don't cost quota.
+  let plan;
+  try {
+    plan = await planRequest(parsed.data);
+  } catch (e) {
+    return Response.json(
+      { ok: false, error: e instanceof Error ? e.message : "Could not analyze request." },
+      { status: 502 },
+    );
+  }
+  if (!plan.allowed || !plan.imagePrompt) {
+    await prisma.projectRequest.create({
+      data: {
+        userId,
+        instruction: parsed.data.instruction,
+        category: parsed.data.category,
+        paperSize: parsed.data.paperSize,
+        style: parsed.data.style,
+        paperColor: parsed.data.paperColor,
+        status: "REJECTED",
+      },
+    });
+    return Response.json(
+      { ok: false, rejected: true, error: plan.rejectionReason || REJECTION_MESSAGE },
+      { status: 422 },
+    );
+  }
+
+  // 5. Persist request + job lifecycle.
   const projectRequest = await prisma.projectRequest.create({
     data: {
       userId,
       instruction: parsed.data.instruction,
-      category: parsed.data.category,
+      category: plan.category ?? parsed.data.category,
       paperSize: parsed.data.paperSize,
       style: parsed.data.style,
       paperColor: parsed.data.paperColor,
@@ -54,9 +83,11 @@ export async function POST(req: Request) {
     data: { projectRequestId: projectRequest.id, status: "RUNNING" },
   });
 
-  // 5. Generate (real OpenAI call). Charge quota only on success.
+  // 6. Generate from the clean, planned prompt. Charge quota only on success.
   try {
-    const image = await generateProjectImage(parsed.data);
+    const image = await generateImageFromPrompt(plan.imagePrompt, {
+      textContent: plan.textContent || undefined,
+    });
 
     const updatedUser = await prisma.$transaction(async (tx) => {
       await tx.generationJob.update({ where: { id: job.id }, data: { status: "SUCCEEDED" } });
@@ -72,7 +103,7 @@ export async function POST(req: Request) {
       ok: true,
       requestId: projectRequest.id,
       image: `data:image/png;base64,${image.b64}`,
-      model: image.model,
+      summary: plan.summary || null,
       remaining: Math.max(0, FREE_GENERATION_QUOTA - updatedUser.freeGenerationsUsed),
     });
   } catch (e) {

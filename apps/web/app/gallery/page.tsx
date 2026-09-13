@@ -48,7 +48,7 @@ export default function Gallery() {
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {EXAMPLES.map((e) => (
-          <div key={e.src} className="overflow-hidden rounded-2xl border bg-white/70 shadow-sm backdrop-blur dark:bg-white/5">
+          <div key={e.src} className="overflow-hidden rounded-2xl border bg-white/85 shadow-sm dark:bg-white/5">
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-3 dark:from-slate-900 dark:to-slate-800">
               <Image
                 src={e.src}

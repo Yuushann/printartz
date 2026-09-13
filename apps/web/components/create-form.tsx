@@ -23,12 +23,14 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(initialRemaining);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setImage(null);
+    setSummary(null);
     if (instruction.trim().length < 3) {
       setError("Please describe the project (at least a few words).");
       return;
@@ -53,6 +55,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
         return;
       }
       setImage(data.image);
+      setSummary(data.summary ?? null);
       setRemaining(data.remaining);
     } catch {
       setError("Network error — please try again.");
@@ -139,12 +142,17 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
         </CardHeader>
         <CardContent>
           {loading && (
-            <div className="text-muted-foreground flex h-72 items-center justify-center text-sm">
-              Painting your image… this takes a few seconds.
+            <div className="text-muted-foreground flex h-72 items-center justify-center px-4 text-center text-sm">
+              Reading the instruction and drawing your sheet… this can take ~10–20 seconds.
             </div>
           )}
           {!loading && image && (
             <div className="space-y-3">
+              {summary && (
+                <p className="rounded-md bg-fuchsia-50 px-3 py-2 text-xs text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300">
+                  <span className="font-semibold">We drew:</span> {summary}
+                </p>
+              )}
               <Image
                 src={image}
                 alt="Generated project image"
