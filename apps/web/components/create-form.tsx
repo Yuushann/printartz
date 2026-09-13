@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES } from "@printartz/shared";
+import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES, type PaperSizeId } from "@printartz/shared";
+import { renderPrintPdf } from "@printartz/rendering";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -85,6 +86,25 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       return;
     }
     await runGenerate(instruction, refs.map((r) => r.file));
+  }
+
+  const [pdfBusy, setPdfBusy] = useState(false);
+  async function onDownloadPdf() {
+    if (!image) return;
+    setPdfBusy(true);
+    try {
+      const bytes = await (await fetch(image)).arrayBuffer();
+      const pdf = await renderPrintPdf({ imageBytes: bytes, paperSizeId: paperSize as PaperSizeId });
+      const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `printartz-${paperSize}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   async function onRefine() {
@@ -240,9 +260,22 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 unoptimized
                 className="w-full rounded-lg border"
               />
-              <a href={image} download="printartz.png" className="text-sm font-medium text-fuchsia-600 hover:underline">
-                Download prototype image ↓
-              </a>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={onDownloadPdf}
+                  disabled={pdfBusy}
+                  className="bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
+                >
+                  {pdfBusy ? "Preparing…" : `Download print-ready PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
+                </Button>
+                <a href={image} download="printartz.png" className="text-muted-foreground text-sm hover:underline">
+                  or PNG preview
+                </a>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                The PDF page is exactly {PAPER_SIZES[paperSize as PaperSizeId].widthMm}×{PAPER_SIZES[paperSize as PaperSizeId].heightMm} mm. Print at 100% / actual size and check the 100 mm ruler.
+              </p>
 
               {/* Refine loop */}
               <div className="rounded-lg border bg-black/[0.02] p-3 dark:bg-white/[0.03]">

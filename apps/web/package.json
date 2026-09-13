@@ -13,6 +13,7 @@
     "@auth/prisma-adapter": "^2.11.3",
     "@printartz/ai": "workspace:*",
     "@printartz/db": "workspace:*",
+    "@printartz/rendering": "workspace:*",
     "@printartz/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
