@@ -18,6 +18,12 @@ export async function SiteHeader() {
         </Link>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/how-it-works"
+            className="text-muted-foreground hidden text-sm font-medium hover:text-foreground sm:inline"
+          >
+            How it works
+          </Link>
           {user ? (
             <>
               <span className="text-muted-foreground hidden text-sm sm:inline">

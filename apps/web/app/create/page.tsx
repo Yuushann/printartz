@@ -1,171 +1,72 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import {
-  SITE,
-  PROJECT_CATEGORIES,
-  PAPER_SIZES,
-  STYLES,
-  projectRequestSchema,
-  type ProjectRequestInput,
-} from "@printartz/shared";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { auth, signIn } from "@/auth";
+import { prisma } from "@printartz/db";
+import { SITE, FREE_GENERATION_QUOTA } from "@printartz/shared";
+import { Button } from "@/components/ui/button";
+import { CreateForm } from "@/components/create-form";
 
-type Errors = Partial<Record<keyof ProjectRequestInput, string>>;
-
-export default function CreatePage() {
-  const [instruction, setInstruction] = useState("");
-  const [category, setCategory] = useState("cutout");
-  const [paperSize, setPaperSize] = useState("a4");
-  const [style, setStyle] = useState("");
-  const [paperColor, setPaperColor] = useState("");
-  const [errors, setErrors] = useState<Errors>({});
-  const [parsed, setParsed] = useState<ProjectRequestInput | null>(null);
-
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setParsed(null);
-    const result = projectRequestSchema.safeParse({
-      instruction,
-      category,
-      paperSize,
-      style: style || undefined,
-      paperColor: paperColor || undefined,
-    });
-    if (!result.success) {
-      const fieldErrors: Errors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof ProjectRequestInput;
-        if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
-      }
-      setErrors(fieldErrors);
-      return;
-    }
-    setErrors({});
-    setParsed(result.data);
-    // TODO(Phase 3): POST to /api/requests -> guardrail pipeline -> generation.
-  }
+export default async function CreatePage() {
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <div className="mb-8 flex items-center justify-between">
+    <main className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mb-6">
         <Link href="/" className="text-muted-foreground text-sm hover:underline">
           &larr; {SITE.name}
         </Link>
       </div>
 
-      <h1 className="text-3xl font-bold tracking-tight">Start a project</h1>
+      <h1 className="text-3xl font-bold tracking-tight">
+        Start a{" "}
+        <span className="bg-gradient-to-r from-fuchsia-600 to-violet-600 bg-clip-text text-transparent">
+          project
+        </span>
+      </h1>
       <p className="text-muted-foreground mt-2">
-        Paste the school instruction and pick the basics. We&apos;ll handle the print-accurate layout.
+        Paste the school instruction, pick the basics, and generate a preview.
       </p>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="instruction">School instruction</Label>
-          <Textarea
-            id="instruction"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            placeholder="e.g. Make an A4 sheet with 6 fruit cutouts for a nursery project, cartoon style."
-          />
-          {errors.instruction && (
-            <p className="text-destructive text-sm">{errors.instruction}</p>
-          )}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {PROJECT_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paperSize">Paper size</Label>
-            <Select
-              id="paperSize"
-              value={paperSize}
-              onChange={(e) => setPaperSize(e.target.value)}
-            >
-              {Object.values(PAPER_SIZES).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} ({p.widthMm}&times;{p.heightMm} mm)
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="style">Style (optional)</Label>
-            <Select
-              id="style"
-              value={style}
-              onChange={(e) => setStyle(e.target.value)}
-            >
-              <option value="">No preference</option>
-              {STYLES.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paperColor">Paper color (optional)</Label>
-            <input
-              id="paperColor"
-              value={paperColor}
-              onChange={(e) => setPaperColor(e.target.value)}
-              placeholder="e.g. white, light blue"
-              className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            />
-          </div>
-        </div>
-
-        <Button type="submit" size="lg">
-          Validate request
-        </Button>
-      </form>
-
-      {parsed && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-base">
-              ✓ Valid request (preview of parsed input)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="bg-muted overflow-x-auto rounded-md p-4 text-xs">
-              {JSON.stringify(parsed, null, 2)}
-            </pre>
-            <p className="text-muted-foreground mt-3 text-sm">
-              Next step (Phase 3): this goes through the guardrail pipeline before generation.
+      <div className="mt-8">
+        {userId ? (
+          <CreateFormWithQuota userId={userId} />
+        ) : (
+          <div className="rounded-2xl border bg-gradient-to-br from-fuchsia-50 to-sky-50 p-8 text-center dark:from-fuchsia-950/30 dark:to-sky-950/20">
+            <h2 className="text-xl font-semibold">Sign in to generate</h2>
+            <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm">
+              You get {FREE_GENERATION_QUOTA} free image generations. Sign in with
+              Google to start creating.
             </p>
-            <Link
-              href="/"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4")}
+            <form
+              className="mt-5"
+              action={async () => {
+                "use server";
+                await signIn("google", { redirectTo: "/create" });
+              }}
             >
-              Back home
-            </Link>
-          </CardContent>
-        </Card>
-      )}
+              <Button
+                type="submit"
+                size="lg"
+                className="bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white hover:from-fuchsia-500 hover:to-violet-500"
+              >
+                Sign in with Google
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
     </main>
   );
+}
+
+async function CreateFormWithQuota({ userId }: { userId: string }) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { freeGenerationsUsed: true },
+  });
+  const remaining = Math.max(
+    0,
+    FREE_GENERATION_QUOTA - (user?.freeGenerationsUsed ?? 0),
+  );
+  return <CreateForm remaining={remaining} />;
 }
