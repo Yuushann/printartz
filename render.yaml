@@ -18,11 +18,15 @@ services:
     plan: free
     region: singapore # closest Render region to India users
     branch: feature/first_build
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    # Render provides pnpm natively (detected via packageManager + lockfile);
+    # do NOT run `corepack enable` — it fails writing to the read-only /usr/bin.
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
+      - key: NODE_VERSION # pin to LTS; `engines: >=20` otherwise grabbed Node 26
+        value: "22.11.0"
       - key: NODE_ENV
         value: production
       # --- Database (Supabase) ---
