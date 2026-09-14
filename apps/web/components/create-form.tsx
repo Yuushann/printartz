@@ -354,7 +354,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
 
     {/* Feedback modal — auto-opens after a download (capped), or via the button */}
     <Modal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} title="Share your feedback">
-      <FeedbackForm projectRequestId={requestId} />
+      <FeedbackForm projectRequestId={requestId} promptSummary={summary} />
     </Modal>
     </>
   );

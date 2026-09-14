@@ -8,7 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
  * Star rating (1-5) + optional comment. Shown only after a signed-in user
  * downloads a result; stored per user via /api/feedback.
  */
-export function FeedbackForm({ projectRequestId }: { projectRequestId?: string | null }) {
+export function FeedbackForm({
+  projectRequestId,
+  promptSummary,
+}: {
+  projectRequestId?: string | null;
+  promptSummary?: string | null;
+}) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -37,7 +43,7 @@ export function FeedbackForm({ projectRequestId }: { projectRequestId?: string |
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, comment, projectRequestId: projectRequestId ?? null }),
+        body: JSON.stringify({ rating, comment, projectRequestId: projectRequestId ?? null, promptSummary: promptSummary ?? null }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {

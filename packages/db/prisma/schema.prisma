@@ -140,13 +140,15 @@ model ProjectRequest {
 // result. Stored per user (and linked to the request when available).
 model Feedback {
   id               String   @id @default(cuid())
-  userId           String
+  userId           String? // null for anonymous site-wide (name-only) reviews
+  guestName        String? // display name for anonymous reviews (NOT a login identity)
   projectRequestId String?
+  promptSummary    String? // the "we drew…" summary of the generation this review is about
   rating           Int // 1-5 stars
   comment          String?
   createdAt        DateTime @default(now())
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   projectRequest ProjectRequest? @relation(fields: [projectRequestId], references: [id], onDelete: SetNull)
 
   @@index([userId])

@@ -41,7 +41,7 @@ export const STYLES = [
 export type StyleId = (typeof STYLES)[number]["id"];
 
 /** Free generations before paid usage kicks in. */
-export const FREE_GENERATION_QUOTA = 10;
+export const FREE_GENERATION_QUOTA = 5;
 
 /** Zod schema for a project-generation request (early draft). */
 export const projectRequestSchema = z.object({
