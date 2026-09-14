@@ -20,7 +20,9 @@ services:
     branch: feature/first_build
     # Render provides pnpm natively (detected via packageManager + lockfile);
     # do NOT run `corepack enable` — it fails writing to the read-only /usr/bin.
-    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    # Run `db:generate` EXPLICITLY: a cached install reports "Already up to date"
+    # and skips packages/db's postinstall, leaving the Prisma client missing.
+    buildCommand: pnpm install --frozen-lockfile && pnpm db:generate && pnpm build
     startCommand: pnpm start
     healthCheckPath: /api/health
     autoDeploy: true
