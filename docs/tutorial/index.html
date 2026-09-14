@@ -21,6 +21,7 @@
           <button class="tab" data-tab="start">🚀 Start here</button>
           <button class="tab" data-tab="arch">🏗️ How PrintArtZ works</button>
           <button class="tab" data-tab="topics">📚 Study topics</button>
+          <button class="tab" data-tab="setup">🔧 Service setup</button>
         </div>
 
         <!-- START -->
@@ -75,6 +76,169 @@
           <p class="lead">Interview-style Q&amp;A, basics → advanced, with code. More added over time.</p>
           <div class="grid" id="topicGrid"></div>
         </section>
+
+        <!-- SERVICE SETUP -->
+        <section class="panel" data-panel="setup">
+          <h2>🔧 Service setup — every account, key &amp; config</h2>
+          <p class="lead">
+            The exact steps used to register and wire up every external service in PrintArtZ.
+            Follow these to recreate the whole stack from scratch. Secret <em>values</em> live in
+            <code>.env.local</code> (and a private credentials note) — this page lists the
+            <strong>where</strong> and <strong>how</strong>, not the secrets themselves.
+          </p>
+          <div class="note">
+            <strong>Env var reference</strong> (values are in <code>.env.local</code>):
+            <code>DATABASE_URL</code>, <code>DIRECT_URL</code> (Supabase) ·
+            <code>OPENAI_API_KEY</code>, <code>AI_TEXT_MODEL=gpt-4o-mini</code>,
+            <code>AI_IMAGE_MODEL=gpt-image-1</code>, <code>AI_IMAGE_QUALITY=medium</code> (OpenAI) ·
+            <code>AUTH_SECRET</code>, <code>NEXTAUTH_URL</code>, <code>AUTH_URL</code>,
+            <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code> (auth) ·
+            <code>EMAIL_PROVIDER_API_KEY</code>, <code>EMAIL_FROM</code> (Resend) ·
+            <code>REDIS_URL</code> (Upstash, unused yet) ·
+            <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code>, <code>RAZORPAY_WEBHOOK_SECRET</code> ·
+            <code>NEXT_PUBLIC_APP_URL</code>, <code>NODE_ENV</code>, <code>NODE_VERSION=22.14.0</code>.
+          </div>
+          <div style="display:flex;gap:10px;margin:12px 0">
+            <button class="btn" data-expand-all>Expand all</button>
+            <button class="btn" data-collapse-all>Collapse all</button>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Code</span>GitHub — repository &amp; branches</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://github.com/Yuushann/printartz">github.com/Yuushann/printartz</a> (private). Remote uses SSH alias <code>git@github.com-personal:Yuushann/printartz.git</code>.</p>
+              <ol>
+                <li>Create a GitHub account; create a repo <code>printartz</code>.</li>
+                <li>Add an SSH key; because this machine has multiple GitHub identities, an SSH host alias <code>github.com-personal</code> is configured in <code>~/.ssh/config</code> pointing to the personal key.</li>
+                <li>Branches: <code>main</code> (holds the private credentials note; otherwise stable), <code>develop</code> (integration + what Render deploys), <code>feature/first_build</code> (frozen first-live snapshot, tag <code>first-build-live</code>), <code>second_build</code> (active work). Flow: work on <code>second_build</code> → merge to <code>develop</code> → Render auto-deploys.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Database</span>Supabase — Postgres database (+ storage)</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://supabase.com">supabase.com</a> · Dashboard → your project.</p>
+              <ol>
+                <li>Sign up → <strong>New project</strong>. Region: <strong>Mumbai (ap-south-1)</strong>. Pick a strong DB password (store it). Free tier (t3.nano).</li>
+                <li><strong>Connect</strong> modal → copy two connection strings into <code>.env.local</code>:
+                  <ul>
+                    <li><code>DATABASE_URL</code> = <em>Transaction pooler</em> (port <code>6543</code>, has <code>?pgbouncer=true</code>).</li>
+                    <li><code>DIRECT_URL</code> = <em>Session pooler</em> (port <code>5432</code>).</li>
+                  </ul>
+                </li>
+                <li>Apply the schema: <code>pnpm db:push</code> (from repo root; loads <code>.env.local</code>). Inspect data in <strong>Table Editor</strong> or <code>pnpm db:studio</code>.</li>
+              </ol>
+              <p class="muted"><strong>Gotchas:</strong> Free tier auto-pauses after ~7 days idle — resume in the dashboard. After a pause the pooler host can migrate (<code>aws-0-…</code> → <code>aws-1-…</code>); if connections fail, re-copy the strings from the Connect modal. On Windows/ARM64 we use Prisma's engine-free client (<code>provider="prisma-client"</code>, <code>engineType="client"</code>) + <code>@prisma/adapter-pg</code> because the classic Rust query engine has no arm64 build.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">AI</span>OpenAI — text + image models</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://platform.openai.com">platform.openai.com</a>.</p>
+              <ol>
+                <li>Create an account + a <strong>project</strong>; add billing.</li>
+                <li><strong>API keys</strong> → create a project key (<code>sk-proj-…</code>) → <code>OPENAI_API_KEY</code>.</li>
+                <li>Set models in <code>.env.local</code>: <code>AI_TEXT_MODEL=gpt-4o-mini</code>, <code>AI_IMAGE_MODEL=gpt-image-1</code>, <code>AI_IMAGE_QUALITY=medium</code> (low ≈ $0.01 / medium ≈ $0.04 / high ≈ $0.17 per image).</li>
+                <li><strong>Settings → Limits</strong> → set a monthly hard cap (we use <strong>$10/mo</strong>, alerts at $8/$10).</li>
+              </ol>
+              <p class="muted"><strong>Gotcha:</strong> this account has NO DALL·E access — image models are <code>gpt-image-1</code> / <code>gpt-image-1-mini</code>. Transparent die-cut art needs quality ≥ medium + a "die-cut sticker, isolated on transparent background" prompt.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Auth</span>Google OAuth — sign in with Google</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://console.cloud.google.com">console.cloud.google.com</a>.</p>
+              <ol>
+                <li>Create a project (<code>printartz</code>).</li>
+                <li><strong>APIs &amp; Services → OAuth consent screen</strong>: External. Add your email as a <em>Test user</em> (or Publish to allow everyone).</li>
+                <li><strong>Credentials → Create credentials → OAuth client ID → Web application</strong>. Add:
+                  <ul>
+                    <li>Authorized JavaScript origins: <code>http://localhost:3000</code> and <code>https://printartz.co.in</code>.</li>
+                    <li>Authorized redirect URIs: <code>http://localhost:3000/api/auth/callback/google</code> and <code>https://printartz.co.in/api/auth/callback/google</code>.</li>
+                  </ul>
+                </li>
+                <li>Copy Client ID/Secret → <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>. Generate <code>AUTH_SECRET</code> (<code>openssl rand -base64 32</code>). Set <code>NEXTAUTH_URL</code> + <code>AUTH_URL</code> to the site URL.</li>
+              </ol>
+              <p class="muted"><strong>Note:</strong> we use Auth.js v5 with <strong>JWT sessions</strong> (required so email+password Credentials works alongside Google). The <code>User</code> model needs <code>emailVerified DateTime?</code> for the Prisma adapter.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Domain</span>GoDaddy — the printartz.co.in domain &amp; DNS</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://dcc.godaddy.com">dcc.godaddy.com</a> → Domain → DNS.</p>
+              <ol>
+                <li>Registered <code>printartz.co.in</code> (3-year term). Complete the NIXI/.in identity (KYC) validation email.</li>
+                <li>DNS records for Render hosting (edit the existing defaults, don't duplicate):
+                  <ul>
+                    <li><strong>A</strong> · Name <code>@</code> · Value <code>216.24.57.1</code> (Render's apex IP).</li>
+                    <li><strong>CNAME</strong> · Name <code>www</code> · Value <code>printartz-web.onrender.com</code>.</li>
+                  </ul>
+                </li>
+                <li>Leave <code>NS</code>, <code>SOA</code>, <code>_domainconnect</code>, <code>_dmarc</code> records alone. Resend's records were added automatically via GoDaddy "Domain Connect".</li>
+              </ol>
+              <p class="muted"><strong>Gotcha:</strong> GoDaddy can't put a CNAME/ALIAS on the apex — the root must be an <strong>A record</strong> to Render's IP. Enable 2FA on the GoDaddy account.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Hosting</span>Render — hosting &amp; auto-deploy</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://dashboard.render.com">dashboard.render.com</a>. (We chose Render over Vercel: it runs a persistent Node server with <strong>no request timeout</strong>, so synchronous image generation can't get killed.)</p>
+              <ol>
+                <li><strong>New → Blueprint</strong> → connect the GitHub repo. Render reads <code>render.yaml</code> from the repo root.</li>
+                <li>Set the deploy <strong>Branch</strong> to <code>develop</code> (Settings → Build &amp; Deploy).</li>
+                <li>Build command: <code>pnpm install --frozen-lockfile &amp;&amp; pnpm db:generate &amp;&amp; pnpm build</code>. Start: <code>pnpm start</code>. Health check path: <code>/api/health</code>. Plan: Free. Region: Singapore.</li>
+                <li>Set all <code>sync:false</code> env vars in <strong>Environment</strong> (copy from <code>.env.local</code>): DB, auth, OpenAI, Google, Resend, URLs. Set <code>NEXTAUTH_URL</code>/<code>AUTH_URL</code>/<code>NEXT_PUBLIC_APP_URL</code> = <code>https://printartz.co.in</code>.</li>
+                <li><strong>Settings → Custom Domains</strong> → add <code>printartz.co.in</code> + <code>www</code>; then add the GoDaddy DNS records above; Render auto-issues SSL.</li>
+              </ol>
+              <p class="muted"><strong>Gotchas:</strong> do NOT run <code>corepack enable</code> (read-only <code>/usr/bin</code> → EROFS); Render provides pnpm natively. Pin <code>NODE_VERSION=22.14.0</code> (pnpm needs ≥22.13). Run <code>pnpm db:generate</code> explicitly in the build (a cached install skips the postinstall). Free tier spins down after ~15 min idle (~30–60s cold start) — see UptimeRobot below.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Email</span>Resend — verification &amp; transactional email</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://resend.com">resend.com</a>.</p>
+              <ol>
+                <li>Sign up (free tier: 3,000/mo, 100/day).</li>
+                <li><strong>Domains → Add Domain</strong> → <code>printartz.co.in</code> (region Tokyo, return-path <code>send</code>) → click <strong>Add domain</strong>.</li>
+                <li>Choose <strong>Auto-configure</strong> → it connects to GoDaddy (Domain Connect) and adds the SPF/DKIM/MX records automatically → <strong>Verify</strong> → wait for <em>Verified ✅</em>.</li>
+                <li><strong>API Keys → Create</strong> (sending access) → <code>EMAIL_PROVIDER_API_KEY</code> (<code>re_…</code>). Set <code>EMAIL_FROM="PrintArtZ &lt;no-reply@printartz.co.in&gt;"</code> (must be on the verified domain).</li>
+              </ol>
+              <p class="muted"><strong>How it's used:</strong> on email+password signup we create a token, email a <code>/verify?token=…</code> link (built from the request host so it points at the real domain), and block generation until verified. Google logins are auto-verified. If <code>EMAIL_PROVIDER_API_KEY</code> is unset, verification is skipped (dev).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Queue</span>Upstash Redis — job queue (provisioned, not yet used)</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://console.upstash.com">console.upstash.com</a>.</p>
+              <ol>
+                <li>Create a Redis database: Regional, Mumbai (ap-south-1), <strong>eviction OFF</strong> (required for BullMQ), TLS on.</li>
+                <li>Copy the connection string into <code>REDIS_URL</code> using the <code>rediss://</code> scheme (double-s = TLS).</li>
+              </ol>
+              <p class="muted"><strong>Why:</strong> reserved for a future <strong>BullMQ background worker</strong> to run long image jobs off the request. <strong>Currently unused</strong> — generation is synchronous, and Render has no request timeout, so it isn't needed yet. Can stay idle on the free tier until we build the worker.</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Payments</span>Razorpay — payments (test mode)</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://dashboard.razorpay.com">dashboard.razorpay.com</a>.</p>
+              <ol>
+                <li>Sign up → stay in <strong>Test mode</strong>. <strong>Settings → API Keys → Generate</strong> → <code>RAZORPAY_KEY_ID</code> (<code>rzp_test_…</code>) + <code>RAZORPAY_KEY_SECRET</code>.</li>
+                <li>Webhooks (later, once a public URL exists): create a webhook → set <code>RAZORPAY_WEBHOOK_SECRET</code>.</li>
+                <li>For LIVE payments: complete business/bank/PAN KYC to get live keys.</li>
+              </ol>
+              <p class="muted"><strong>Status:</strong> test keys stored; the payment flow itself is not built yet (next task).</p>
+            </div>
+          </div>
+
+          <div class="qa"><button><span><span class="lvl basic">Uptime</span>UptimeRobot — keep the free service warm</span><span class="chev">▶</span></button>
+            <div class="body">
+              <p><strong>URL:</strong> <a href="https://uptimerobot.com">uptimerobot.com</a>.</p>
+              <ol>
+                <li>Sign up (free). <strong>+ New monitor</strong> → Type <strong>HTTP(s)</strong>, Name <code>PrintArtZ</code>, URL <code>https://printartz.co.in/api/health</code>, interval <strong>5 minutes</strong> → Create.</li>
+              </ol>
+              <p class="muted"><strong>Why:</strong> Render's free service sleeps after ~15 min idle; a 5-minute ping to the lightweight <code>/api/health</code> keeps it awake (and gives free uptime alerts). Uses ~730 of 750 free instance-hours/mo — fits one service.</p>
+            </div>
+          </div>
+        </section>
       </div>
 
       <footer>PrintArtZ project training guide · grows as the project grows.</footer>
@@ -93,7 +257,8 @@
         ["Auth", "Auth.js + Google", "Sign in without handling passwords."],
         ["AI", "OpenAI", "Text model plans the prompt; image model draws it."],
         ["Payments", "Razorpay", "Handles cards/UPI securely."],
-        ["Hosting", "Vercel (planned)", "Runs the site and auto-deploys on push."],
+        ["Email", "Resend", "Sends verification + transactional email."],
+        ["Hosting", "Render", "Persistent Node server; auto-deploys on push to develop."],
       ];
       document.getElementById("stackGrid").innerHTML = STACK.map(
         ([role, name, what]) =>
@@ -158,7 +323,8 @@
         ["Upstash Redis (queue)", "job backend", true],
         ["Google OAuth (login)", "identity provider", true],
         ["Razorpay (payments)", "test mode", true],
-        ["Resend (email)", "not set up yet", false],
+        ["Resend (email)", "domain verified", true],
+        ["Render (hosting)", "free tier + UptimeRobot keep-warm", true],
       ];
       const svcList = document.getElementById("svcList");
       const render = (states) => {

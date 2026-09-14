@@ -97,6 +97,23 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ## 5. Session log (most recent first)
 
+### 2026-09-13/14 (sessions 4–5 — Claude Code) — live launch, product build-out, renderer V2/V3
+
+**Phase 1 finish → Waves:** Google sign-in (Auth.js v5) + colorful redesign; **OpenAI image pipeline** (`packages/ai`: `planRequest` guardrail+prompt extraction via gpt-4o-mini, `generateImageFromPrompt`/`…WithReferences` via gpt-image-1); **/api/generate** (login-gated, zod, quota, persists ProjectRequest/GenerationJob). Fixed auth `Configuration` bug (added `User.emailVerified`). Kid/parent redesign + `/gallery`. Reference-image upload (images/edits). Iterative "regenerate with a change".
+
+**Print accuracy:** `packages/rendering` (pdf-lib) — **V1** exact paper-size PDF + cut border + 100mm ruler. **V2** client-side canvas whitespace-trim → accurate single-object cm sizing (`lib/trim-image.ts`). **V3 "generate-then-compose"** — `renderCutoutSheetPdf` tiles N copies of one clean isolated object at exact cm across multi-page grids (best for cutout sheets); `single` AI option draws one die-cut object.
+
+**HOSTING — WENT LIVE:** chose **Render** (persistent server, no request timeout) over Vercel. Blueprint from `render.yaml`, deploy branch `develop`, Node pinned 22.14.0, health check `/api/health`. **Live at https://printartz.co.in** with SSL (GoDaddy A `@`→216.24.57.1, CNAME `www`→onrender). Free-tier keep-warm via UptimeRobot on `/api/health`.
+
+**Design overhaul:** dark mode default (pure-black tokens) + theme dropdown (Light/Dark/Warm/High-contrast); header restructured (centered "PrintArtZ" label, right-aligned nav, far-left Home, mobile hamburger); Contact/Help/Reviews/How-it-works as modals (portal to body); photographic Pexels backdrops; Firefox scroll-jank fixed (pause anim on scroll + `content-visibility` + fixed wash + no permanent will-change).
+
+**Accounts & data:** **email+password auth** (Auth.js switched to **JWT sessions** + Credentials + bcryptjs; `/login`, `/api/signup`); **profile modal** (editable name, generation stats); **Resend email verification** (`/verify`, gated generation, link built from request host); **gated 5-star feedback** stored per user (after download, capped prompts) + anonymous name-only reviews; **Reviews** modal (sort/filter, prompt-summary header, IST time). Store planner `imagePrompt`. New `LEGEND` role = unlimited (Super User). Free quota set to 5.
+
+**Provisioning completed:** **Resend** (domain verified via GoDaddy Domain Connect, API key). All services now live except the Razorpay flow (test keys stored, flow not built).
+
+**Branches:** `feature/first_build` frozen (tag `first-build-live`); active work on `second_build` → merged to `develop` (Render deploys). **Remaining:** Razorpay payment flow; real V3 print testing.
+- Added **"🔧 Service setup"** tab to `docs/tutorial/` documenting every service's registration/keys/DNS/config.
+
 ### 2026-09-12 (session 3 — Claude Code)
 - Resumed after long gap: **un-paused Supabase**; fixed stale pooler host (`aws-0`→`aws-1`) in `DATABASE_URL`/`DIRECT_URL`; verified DB (PG 17.6).
 - Provisioned + **verified live**: **OpenAI** (fixed image model to `gpt-image-1`; dall-e-3 not on account; $10/mo spend cap), **Upstash Redis** (`rediss://` TLS, Mumbai), **Razorpay** test keys (test order created).
