@@ -22,6 +22,7 @@
           <button class="tab" data-tab="arch">🏗️ How PrintArtZ works</button>
           <button class="tab" data-tab="topics">📚 Study topics</button>
           <button class="tab" data-tab="setup">🔧 Service setup</button>
+          <button class="tab" data-tab="walkthrough">🧭 Code walkthrough</button>
         </div>
 
         <!-- START -->
@@ -238,6 +239,248 @@
               <p class="muted"><strong>Why:</strong> Render's free service sleeps after ~15 min idle; a 5-minute ping to the lightweight <code>/api/health</code> keeps it awake (and gives free uptime alerts). Uses ~730 of 750 free instance-hours/mo — fits one service.</p>
             </div>
           </div>
+        </section>
+
+        <!-- CODE WALKTHROUGH -->
+        <section class="panel" data-panel="walkthrough">
+          <h2>🧭 Code walkthrough — how the whole app actually runs</h2>
+          <p class="lead">
+            Follow one thing from end to end: a developer pushes code, Render builds &amp; deploys it,
+            a parent signs in, types an instruction, and gets a printable image — with the real files,
+            functions and tables involved at each step. Use the <strong>"Which file do I touch?"</strong>
+            map at the bottom to jump straight to the code for any change.
+          </p>
+
+          <h2>🗂️ The repository map</h2>
+          <p class="lead">It's a <strong>pnpm monorepo</strong>: one Next.js app + four shared packages.</p>
+<pre><code>printartz/
+├─ apps/web/                      # the Next.js app (frontend + backend together)
+│  ├─ app/
+│  │  ├─ layout.tsx               # root shell: &lt;html&gt;, theme init, header, children
+│  │  ├─ page.tsx                 # homepage
+│  │  ├─ create/page.tsx          # /create (server): auth gate → &lt;CreateForm/&gt;
+│  │  ├─ login/page.tsx           # sign in / create account (client)
+│  │  ├─ gallery/page.tsx         # examples
+│  │  ├─ verify/route.ts          # email verification link target
+│  │  └─ api/
+│  │     ├─ auth/[...nextauth]/route.ts   # Auth.js endpoints
+│  │     ├─ generate/route.ts     # ⭐ the core: prompt → image
+│  │     ├─ signup/route.ts       # email+password signup
+│  │     ├─ feedback/route.ts     # save a review
+│  │     ├─ reviews/route.ts      # list reviews / guest review
+│  │     ├─ profile/route.ts      # rename
+│  │     └─ health/route.ts       # keep-warm ping
+│  ├─ auth.ts                     # NextAuth config (JWT, Google + password)
+│  ├─ components/                 # create-form, site-header, modals, …
+│  ├─ lib/                        # email.ts, trim-image.ts, utils.ts
+│  └─ next.config.ts              # transpilePackages, serverExternalPackages
+├─ packages/
+│  ├─ shared/   # constants + zod schema (paper sizes, categories, quota)
+│  ├─ db/       # Prisma schema + the engine-free client singleton
+│  ├─ ai/       # OpenAI calls: planRequest + image generation
+│  └─ rendering/# pdf-lib: renderPrintPdf + renderCutoutSheetPdf
+├─ render.yaml  # Render Blueprint (build/start/branch/env)
+└─ pnpm-workspace.yaml</code></pre>
+          <div class="note">
+            <strong>Frontend vs backend live in the same app.</strong> In Next.js App Router, files are
+            <strong>Server Components</strong> by default (run on the server, can touch the DB). A file with
+            <code>"use client"</code> at the top ships to the browser (buttons, state, effects). Files under
+            <code>app/api/**/route.ts</code> are backend HTTP endpoints.
+          </div>
+
+          <h2>🚀 Flow 1 — a developer pushes code → it goes live</h2>
+          <div class="vflow">
+            <div class="vnode"><div class="t">git push origin second_build</div><div class="d">You commit on the work branch.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">merge → develop</div><div class="d">Fast-forward merge; push develop. Render watches this branch.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Render detects the push</div><div class="d">Auto-deploy triggers on the printartz-web service.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Build</div><div class="d">pnpm install --frozen-lockfile → pnpm db:generate (Prisma client) → pnpm build (Next.js).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Boot + health check</div><div class="d">pnpm start (next start); Render hits /api/health; on 200 → traffic switches over.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Live</div><div class="d">New code serving at https://printartz.co.in (SSL via Render).</div></div>
+          </div>
+          <p class="lead">The build/start commands come from <code>render.yaml</code>:</p>
+<pre><code>services:
+  - type: web
+    branch: develop
+    buildCommand: pnpm install --frozen-lockfile &amp;&amp; pnpm db:generate &amp;&amp; pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/health</code></pre>
+
+          <h2>📦 Flow 2 — how the bundle is packed</h2>
+          <p class="lead">
+            <code>pnpm install</code> reads <code>pnpm-workspace.yaml</code>, links the four
+            <code>packages/*</code> into <code>apps/web</code> (as <code>@printartz/shared</code> etc.), and
+            installs npm deps once, shared via symlinks. <code>next build</code> then compiles everything into
+            two kinds of output:
+          </p>
+          <ul>
+            <li><strong>Server bundle</strong> — Server Components + <code>route.ts</code> handlers + the Node runtime (Prisma, OpenAI, bcrypt).</li>
+            <li><strong>Client bundle</strong> — only the <code>"use client"</code> components + React, sent to the browser and "hydrated".</li>
+          </ul>
+          <p class="lead">Two config lines make the monorepo + Prisma work at build/runtime:</p>
+<pre><code>// apps/web/next.config.ts
+transpilePackages: ["@printartz/shared","@printartz/db","@printartz/ai","@printartz/rendering"],
+// ↑ compile our TS packages directly (no separate build step)
+serverExternalPackages: ["@prisma/client","@prisma/adapter-pg"],
+// ↑ don't bundle Prisma's engine-free runtime; load it from node_modules on the server</code></pre>
+
+          <h2>🖥️ Flow 3 — a page request (server → browser)</h2>
+          <div class="vflow">
+            <div class="vnode"><div class="t">Browser GET /create</div><div class="d">Request hits the Next.js server on Render.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">layout.tsx runs (server)</div><div class="d">Renders &lt;html class="dark"&gt;, the theme init &lt;script&gt;, and &lt;SiteHeader/&gt;.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">SiteHeader (server) calls auth()</div><div class="d">Reads the session cookie → knows if you're logged in → queries Prisma for your generation count.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">create/page.tsx (server)</div><div class="d">auth() again: if logged out shows a "Sign in" CTA; else renders &lt;CreateForm/&gt; with your remaining quota.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">HTML streamed to browser</div><div class="d">Server sends ready HTML (fast first paint).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Hydration</div><div class="d">The client bundle attaches; "use client" components (CreateForm, ThemeToggle…) become interactive.</div></div>
+          </div>
+
+          <h2>🔐 Flow 4 — signing in</h2>
+          <p class="lead">Two ways in; both end as a signed <strong>JWT cookie</strong>. Config lives in <code>apps/web/auth.ts</code>.</p>
+          <div class="grid">
+            <div class="card"><div class="role">Google</div><h3>OAuth</h3><p>Click "Continue with Google" → Google consent → callback <code>/api/auth/callback/google</code> → Auth.js creates/links the <code>User</code>+<code>Account</code> via the Prisma adapter → JWT cookie set.</p></div>
+            <div class="card"><div class="role">Email + password</div><h3>Credentials</h3><p><code>/api/signup</code> hashes the password (bcrypt) into <code>User.passwordHash</code> + emails a verify link. Login calls <code>signIn("credentials")</code> → <code>authorize()</code> in auth.ts compares the hash → JWT cookie set.</p></div>
+          </div>
+<pre><code>// apps/web/auth.ts (the important bits)
+session: { strategy: "jwt" },              // JWT (needed for password login)
+providers: [ Google({...}), Credentials({ authorize: async (c) =&gt; {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user?.passwordHash) return null;
+  return (await bcrypt.compare(password, user.passwordHash)) ? user : null;
+}}) ],
+callbacks: {
+  jwt({ token, user })  { if (user?.id) token.id = user.id; return token; },   // put id on the token
+  session({ session, token }) { session.user.id = token.id; return session; }, // expose session.user.id
+}</code></pre>
+
+          <h2>⭐ Flow 5 — generating an image (the core), with real data</h2>
+          <p class="lead">This is the heart of the app. Example input a parent types on <code>/create</code>:</p>
+<pre><code>instruction: "For Independence Day make a tricolour kite with the Ashoka
+              Chakra in the centre, attach a stick and send bows."
+category: "cutout"   paperSize: "a4"   style: ""   (no sample images)</code></pre>
+          <div class="vflow">
+            <div class="vnode"><div class="t">CreateForm.onSubmit → runGenerate()</div><div class="d">components/create-form.tsx builds FormData and POSTs to /api/generate.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">POST /api/generate → auth()</div><div class="d">Reject 401 if not signed in. Gets userId from the JWT.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Validate + gates</div><div class="d">Zod (projectRequestSchema) checks input. Then: email-verified? quota left? (role=LEGEND ⇒ unlimited).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">planRequest() — gpt-4o-mini</div><div class="d">packages/ai: guardrails junk AND extracts a clean visual prompt + summary.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Write to DB (Prisma)</div><div class="d">Create ProjectRequest (status GENERATING, stores imagePrompt) + GenerationJob (RUNNING).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">generateImageFromPrompt() — gpt-image-1</div><div class="d">packages/ai hardens the prompt and calls OpenAI images API → base64 PNG.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Transaction: finalize</div><div class="d">Job→SUCCEEDED, Request→GENERATED, User.freeGenerationsUsed += 1 (atomic).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Response → preview</div><div class="d">Returns { image: dataURL, summary, requestId, remaining }. CreateForm shows it + router.refresh() updates the header count.</div></div>
+          </div>
+          <p class="lead">What the planner turns the messy message into (it ignores the stick/bows):</p>
+<pre><code>// planRequest() output (RequestPlan)
+{ allowed: true, category: "chart",
+  imagePrompt: "a diamond kite outline in three horizontal bands — saffron,
+                white, green — with a navy Ashoka Chakra (24 spokes) centred…",
+  textContent: "", summary: "A tricolour kite with the Ashoka Chakra" }</code></pre>
+          <p class="lead">The backend route, condensed (<code>app/api/generate/route.ts</code>):</p>
+<pre><code>const session = await auth();                       // 1. who are you
+const userId = session?.user?.id; if (!userId) return 401;
+const parsed = projectRequestSchema.safeParse(fields);   // 2. validate (zod, from @printartz/shared)
+const user = await prisma.user.findUnique({ where:{id:userId},
+  select:{ freeGenerationsUsed:true, emailVerified:true, passwordHash:true, role:true }});
+// 3. gates: verify email (if configured) + quota (skip if role === "LEGEND")
+const plan = await planRequest(parsed.data);        // 4. guardrail + prompt (gpt-4o-mini)
+const projectRequest = await prisma.projectRequest.create({ data:{ userId, ...parsed.data,
+  imagePrompt: plan.imagePrompt, status:"GENERATING" }});          // 5. persist
+const job = await prisma.generationJob.create({ data:{ projectRequestId: projectRequest.id, status:"RUNNING" }});
+const image = await generateImageFromPrompt(plan.imagePrompt, { single });   // 6. draw (gpt-image-1)
+await prisma.$transaction(async (tx) =&gt; {            // 7. finalize atomically
+  await tx.generationJob.update({ where:{id:job.id}, data:{status:"SUCCEEDED"} });
+  await tx.projectRequest.update({ where:{id:projectRequest.id}, data:{status:"GENERATED"} });
+  return tx.user.update({ where:{id:userId}, data:{ freeGenerationsUsed:{ increment:1 } }});
+});
+return Response.json({ ok:true, requestId: projectRequest.id, image:`data:image/png;base64,${image.b64}`, summary: plan.summary });</code></pre>
+
+          <h2>🖨️ Flow 6 — download &amp; the renderer (client-side)</h2>
+          <p class="lead">
+            The AI only draws the artwork; <strong>our code controls the physical geometry</strong>. On download,
+            the browser trims the whitespace and lays it out at exact millimetre sizes with <code>pdf-lib</code>.
+          </p>
+          <div class="vflow">
+            <div class="vnode"><div class="t">Click "Download PDF"</div><div class="d">create-form.tsx onDownloadPdf/onDownloadSheet.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">trimWhitespace() (canvas)</div><div class="d">lib/trim-image.ts finds the artwork's tight bounding box and crops the padding.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">renderPrintPdf / renderCutoutSheetPdf</div><div class="d">packages/rendering places it at exact mm (mm→pt = ×72/25.4). V3 tiles N copies in a grid across pages.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Blob → download</div><div class="d">A real paper-size PDF; print at 100% and the 100 mm ruler confirms scale.</div></div>
+          </div>
+
+          <h2>🗄️ Flow 7 — the ORM (Prisma) &amp; where server connectivity happens</h2>
+          <p class="lead">
+            Prisma is how code talks to Postgres with typed methods instead of raw SQL. One shared client
+            (a singleton) is created in <code>packages/db/src/index.ts</code> and imported everywhere as
+            <code>import { prisma } from "@printartz/db"</code>.
+          </p>
+<pre><code>// packages/db/src/index.ts — the single DB connection for the whole app
+import { PrismaClient } from "./generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, ssl:{ rejectUnauthorized:false } });
+export const prisma = globalThis.__prisma ?? new PrismaClient({ adapter });
+// (engine-free client + pg adapter — required on Windows/ARM64; connects to Supabase's pooler)</code></pre>
+          <p class="lead">A call like <code>prisma.user.findUnique(...)</code> flows:</p>
+          <div class="vflow">
+            <div class="vnode"><div class="t">prisma.user.findUnique({ where:{ id } })</div><div class="d">Typed method in your route.</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Prisma query compiler → SQL</div><div class="d">Turns it into "SELECT … FROM \"User\" WHERE id = $1".</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">@prisma/adapter-pg → Supabase pooler</div><div class="d">Sends SQL over the pooled Postgres connection (port 6543).</div></div>
+            <div class="vconn"></div>
+            <div class="vnode"><div class="t">Rows → typed objects</div><div class="d">Postgres returns rows; Prisma maps them to a typed User you use in code.</div></div>
+          </div>
+          <p class="muted">Schema (the source of truth) lives in <code>packages/db/prisma/schema.prisma</code>. Change a model → run <code>pnpm db:push</code> to sync Supabase → <code>pnpm db:generate</code> regenerates the typed client.</p>
+
+          <h2>📍 Flow 8 — which data is stored where</h2>
+          <ul>
+            <li><strong>User</strong> — identity: email, name, image, <code>passwordHash</code> (email signups), <code>emailVerified</code>, <code>role</code> (USER/ADMIN/LEGEND), <code>freeGenerationsUsed</code>.</li>
+            <li><strong>Account / Session / VerificationToken</strong> — OAuth links + Auth.js bookkeeping (with JWT, sessions live in the cookie, not the Session table).</li>
+            <li><strong>ProjectRequest</strong> — one per generation: the raw <code>instruction</code>, the clean <code>imagePrompt</code>, category, paper size, status.</li>
+            <li><strong>GenerationJob</strong> — the job lifecycle (QUEUED→RUNNING→SUCCEEDED/FAILED) for each request.</li>
+            <li><strong>Feedback</strong> — 5-star + comment + <code>promptSummary</code>, linked to user (or <code>guestName</code> for anonymous reviews).</li>
+            <li><strong>GeneratedAsset / storage buckets</strong> — <em>defined but not used yet</em>: images are currently returned to the browser, not saved. (Future: persist to Supabase Storage.)</li>
+            <li><strong>PaymentOrder / Download / PricingTier</strong> — reserved for the Razorpay flow (not built yet).</li>
+          </ul>
+
+          <h2>🔧 Which file do I touch to change…?</h2>
+          <div style="display:flex;gap:10px;margin:12px 0">
+            <button class="btn" data-expand-all>Expand all</button>
+            <button class="btn" data-collapse-all>Collapse all</button>
+          </div>
+          <div class="qa"><button><span>…the free generation limit</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>packages/shared/src/index.ts</code> → <code>FREE_GENERATION_QUOTA</code>. Used by the gate in <code>app/api/generate/route.ts</code> and shown in the header/create form.</p></div></div>
+          <div class="qa"><button><span>…the AI prompt behaviour / guardrails</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>packages/ai/src/index.ts</code> — <code>PLANNER_SYSTEM</code> (what's allowed + how prompts are extracted) and <code>hardenImagePrompt()</code> (final style rules). Image quality = <code>AI_IMAGE_QUALITY</code> env.</p></div></div>
+          <div class="qa"><button><span>…the generation API / quotas / storage</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>app/api/generate/route.ts</code> — auth, validation, gates, DB writes, calling the AI package.</p></div></div>
+          <div class="qa"><button><span>…the /create form UI (inputs, download, feedback)</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>apps/web/components/create-form.tsx</code>. The 3 panels, tile/cutout mode, PDF download, feedback modal all live here.</p></div></div>
+          <div class="qa"><button><span>…the database shape (add a column/table)</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>packages/db/prisma/schema.prisma</code>, then <code>pnpm db:push</code> + <code>pnpm db:generate</code>.</p></div></div>
+          <div class="qa"><button><span>…login / sessions / password rules</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>apps/web/auth.ts</code> (providers, callbacks), <code>app/api/signup/route.ts</code>, <code>app/login/page.tsx</code>.</p></div></div>
+          <div class="qa"><button><span>…the print sizing / cutout grid</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>packages/rendering/src/index.ts</code> (<code>renderPrintPdf</code>, <code>renderCutoutSheetPdf</code>) + <code>apps/web/lib/trim-image.ts</code>.</p></div></div>
+          <div class="qa"><button><span>…the header, themes, or modals</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>components/site-header.tsx</code>, <code>theme-toggle.tsx</code> + tokens in <code>app/globals.css</code>, and <code>components/ui/modal.tsx</code>.</p></div></div>
+          <div class="qa"><button><span>…deploy settings (build/branch/env)</span><span class="chev">▶</span></button>
+            <div class="body"><p><code>render.yaml</code> (build/start/branch/env slots) + the Render dashboard for secret values.</p></div></div>
         </section>
       </div>
 
