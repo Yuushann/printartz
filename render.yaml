@@ -75,6 +75,6 @@ services:
       - key: EMAIL_PROVIDER_API_KEY
         sync: false
       - key: EMAIL_FROM
-        value: no-reply@printartz.co.in
+        value: PrintArtZ <no-reply@printartz.co.in>
       - key: SUPPORT_EMAIL
         value: support@printartz.co.in
