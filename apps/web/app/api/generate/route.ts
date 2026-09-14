@@ -8,6 +8,7 @@ import {
   type ReferenceImage,
 } from "@printartz/ai";
 import { projectRequestSchema, FREE_GENERATION_QUOTA } from "@printartz/shared";
+import { isEmailConfigured } from "@/lib/email";
 
 export const runtime = "nodejs";
 // Vercel Hobby caps function duration ~60s; Pro allows more. Image generation
@@ -63,9 +64,17 @@ export async function POST(req: Request) {
   // 3. Free-quota check.
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { freeGenerationsUsed: true },
+    select: { freeGenerationsUsed: true, emailVerified: true, passwordHash: true },
   });
   if (!user) return Response.json({ ok: false, error: "User not found." }, { status: 401 });
+  // Email/password accounts must verify their email (only enforced once email
+  // sending is configured; OAuth accounts are already verified by the provider).
+  if (isEmailConfigured() && user.passwordHash && !user.emailVerified) {
+    return Response.json(
+      { ok: false, error: "Please verify your email first — check your inbox for the verification link." },
+      { status: 403 },
+    );
+  }
   if (user.freeGenerationsUsed >= FREE_GENERATION_QUOTA) {
     return Response.json(
       { ok: false, error: "Free generation quota reached. Paid generation is coming soon.", remaining: 0 },

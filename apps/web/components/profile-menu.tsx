@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 export function ProfileMenu({
   name,
@@ -19,9 +20,42 @@ export function ProfileMenu({
   quota: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [currentName, setCurrentName] = useState(name);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name ?? "");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const remaining = Math.max(0, quota - used);
-  const display = name || email || "Account";
+  const display = currentName || email || "Account";
   const initial = (display[0] || "?").toUpperCase();
+
+  async function saveName() {
+    const next = draft.trim();
+    if (next.length < 1) {
+      setErr("Name can't be empty.");
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: next }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErr(data.error ?? "Could not save.");
+        return;
+      }
+      setCurrentName(next);
+      setEditing(false);
+    } catch {
+      setErr("Network error — try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const Avatar = ({ size }: { size: string }) =>
     image ? (
@@ -49,9 +83,34 @@ export function ProfileMenu({
         <div className="space-y-5 text-sm">
           <div className="flex items-center gap-3">
             <Avatar size="h-12 w-12" />
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{name || "—"}</p>
-              <p className="text-muted-foreground truncate">{email}</p>
+            <div className="min-w-0 flex-1">
+              {editing ? (
+                <div className="space-y-2">
+                  <Label htmlFor="pf-name" className="text-xs">Name</Label>
+                  <input
+                    id="pf-name"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    className="border-input bg-background flex h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveName} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(false); setDraft(currentName ?? ""); setErr(null); }}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{currentName || "—"}</p>
+                    <p className="text-muted-foreground truncate">{email}</p>
+                  </div>
+                  <button type="button" onClick={() => { setDraft(currentName ?? ""); setEditing(true); }} className="text-muted-foreground hover:text-foreground ml-auto text-xs underline">
+                    Edit
+                  </button>
+                </div>
+              )}
+              {err && <p className="text-destructive mt-1 text-xs">{err}</p>}
             </div>
           </div>
 

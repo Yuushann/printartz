@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { FeedbackForm } from "@/components/feedback-form";
+import { Modal } from "@/components/ui/modal";
 
 const MAX_FILES = 2;
+const MAX_FEEDBACK_PROMPTS = 10; // stop auto-opening feedback after this many downloads
 
 type Ref = { file: File; url: string };
 
@@ -30,7 +32,21 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [remaining, setRemaining] = useState(initialRemaining);
   const [refine, setRefine] = useState("");
   const [requestId, setRequestId] = useState<string | null>(null);
-  const [downloaded, setDownloaded] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  // Auto-open the feedback modal after a download, but only up to a lifetime cap
+  // so we don't nag repeat users. A manual "Share feedback" button is always shown.
+  function maybePromptFeedback() {
+    try {
+      const n = Number(localStorage.getItem("pa_fb_prompts") || "0");
+      if (n < MAX_FEEDBACK_PROMPTS) {
+        localStorage.setItem("pa_fb_prompts", String(n + 1));
+        setFeedbackOpen(true);
+      }
+    } catch {
+      setFeedbackOpen(true);
+    }
+  }
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -71,7 +87,6 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       setSummary(data.summary ?? null);
       setRemaining(data.remaining);
       setRequestId(data.requestId ?? null);
-      setDownloaded(false);
       return true;
     } catch {
       setError("Network error — please try again.");
@@ -107,7 +122,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       a.download = `printartz-${paperSize}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      setDownloaded(true);
+      maybePromptFeedback();
     } finally {
       setPdfBusy(false);
     }
@@ -126,9 +141,10 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      {/* Form */}
-      <form onSubmit={onSubmit} className="space-y-6">
+    <>
+    <div className="grid gap-6 lg:grid-cols-3">
+      {/* Panel 1 — Form */}
+      <form onSubmit={onSubmit} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="instruction">School instruction</Label>
           <Textarea
@@ -240,7 +256,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
         {error && <p className="text-destructive text-sm">{error}</p>}
       </form>
 
-      {/* Result */}
+      {/* Panel 2 — Preview image */}
       <Card className="min-h-80">
         <CardHeader>
           <CardTitle className="text-base">Preview</CardTitle>
@@ -266,17 +282,35 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 unoptimized
                 className="w-full rounded-lg border"
               />
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  onClick={onDownloadPdf}
-                  disabled={pdfBusy}
-                  className="bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
-                >
-                  {pdfBusy ? "Preparing…" : `Download print-ready PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
-                </Button>
-                <a href={image} download="printartz.png" onClick={() => setDownloaded(true)} className="text-muted-foreground text-sm hover:underline">
-                  or PNG preview
+            </div>
+          )}
+          {!loading && !image && (
+            <div className="text-muted-foreground flex h-72 items-center justify-center text-center text-sm">
+              Your generated image will appear here.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Panel 3 — Download & tweak */}
+      <Card className="min-h-80">
+        <CardHeader>
+          <CardTitle className="text-base">Download &amp; tweak</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {image ? (
+            <div className="space-y-4">
+              <Button
+                type="button"
+                onClick={onDownloadPdf}
+                disabled={pdfBusy}
+                className="w-full bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
+              >
+                {pdfBusy ? "Preparing…" : `Download PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
+              </Button>
+              <div className="text-center">
+                <a href={image} download="printartz.png" onClick={maybePromptFeedback} className="text-muted-foreground text-sm hover:underline">
+                  or download PNG preview
                 </a>
               </div>
               <p className="text-muted-foreground text-xs">
@@ -286,14 +320,14 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
               {/* Refine loop */}
               <div className="rounded-lg border bg-black/[0.02] p-3 dark:bg-white/[0.03]">
                 <Label htmlFor="refine" className="text-sm">Not quite right? Ask for a change</Label>
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-col gap-2">
                   <input
                     id="refine"
                     value={refine}
                     onChange={(e) => setRefine(e.target.value)}
                     disabled={loading || remaining <= 0}
-                    placeholder="e.g. make the apples bigger, add 2 more, use green leaves"
-                    className="border-input flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    placeholder="e.g. make the apples bigger, add 2 more"
+                    className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   />
                   <Button type="button" variant="outline" onClick={onRefine} disabled={loading || remaining <= 0 || refine.trim().length < 2}>
                     Regenerate
@@ -304,22 +338,24 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 </p>
               </div>
 
-              <p className="text-muted-foreground text-xs">
-                Prototype preview — final print-accurate PDF export, watermarking and paid
-                download come in later phases.
-              </p>
-
-              {/* Feedback appears only after the user has downloaded a result. */}
-              {downloaded && <FeedbackForm projectRequestId={requestId} />}
+              {/* Manual feedback entry — always available */}
+              <Button type="button" variant="outline" className="w-full" onClick={() => setFeedbackOpen(true)}>
+                💬 Share feedback
+              </Button>
             </div>
-          )}
-          {!loading && !image && (
-            <div className="text-muted-foreground flex h-72 items-center justify-center text-center text-sm">
-              Your generated image will appear here.
+          ) : (
+            <div className="text-muted-foreground flex h-72 items-center justify-center px-4 text-center text-sm">
+              Generate an image to download, refine, and share feedback.
             </div>
           )}
         </CardContent>
       </Card>
     </div>
+
+    {/* Feedback modal — auto-opens after a download (capped), or via the button */}
+    <Modal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} title="Share your feedback">
+      <FeedbackForm projectRequestId={requestId} />
+    </Modal>
+    </>
   );
 }

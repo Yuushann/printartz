@@ -8,11 +8,13 @@ export function Modal({
   onClose,
   title,
   children,
+  size = "md",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: "md" | "lg";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -31,7 +33,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="bg-card text-card-foreground relative z-10 w-full max-w-md rounded-2xl border p-6 shadow-2xl">
+      <div className={`bg-card text-card-foreground relative z-10 w-full ${size === "lg" ? "max-w-2xl" : "max-w-md"} rounded-2xl border p-6 shadow-2xl`}>
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-lg font-bold">{title}</h2>
           <button

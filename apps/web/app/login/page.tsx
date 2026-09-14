@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { SITE } from "@printartz/shared";
@@ -15,7 +15,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("verified") === "1") setNotice("Your email is verified — please sign in.");
+    else if (p.get("verify") === "expired") setError("That verification link has expired. Please sign up again.");
+    else if (p.get("verify") === "invalid") setError("That verification link is invalid.");
+  }, []);
 
   const input =
     "border-input flex h-10 w-full rounded-md border bg-transparent px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50";
@@ -34,6 +42,13 @@ export default function LoginPage() {
         const data = await res.json();
         if (!res.ok || !data.ok) {
           setError(data.error ?? "Could not create your account.");
+          return;
+        }
+        // If a verification email was sent, don't auto-login — user must verify.
+        if (data.verifyEmailSent) {
+          setNotice(`We sent a verification link to ${email}. Please verify your email, then sign in.`);
+          setMode("signin");
+          setPassword("");
           return;
         }
       }
@@ -92,6 +107,7 @@ export default function LoginPage() {
             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="At least 8 characters" autoComplete={mode === "signin" ? "current-password" : "new-password"} />
           </div>
 
+          {notice && <p className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">{notice}</p>}
           {error && <p className="text-destructive text-sm">{error}</p>}
 
           <Button

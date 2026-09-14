@@ -130,6 +130,11 @@
     @apply bg-background text-foreground;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
+  /* Native <select> popup options: match the active theme (fixes white popups in dark). */
+  option {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
 }
 
 /* Floating cartoon decorations — transform-only + own layer for smooth

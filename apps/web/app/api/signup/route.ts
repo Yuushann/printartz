@@ -1,5 +1,7 @@
 import { prisma } from "@printartz/db";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
+import { isEmailConfigured, sendVerificationEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -30,6 +32,30 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.create({ data: { name, email, passwordHash } });
-  return Response.json({ ok: true });
+  try {
+    await prisma.user.create({ data: { name, email, passwordHash } });
+  } catch (e) {
+    // Unique constraint on email (race with a concurrent signup).
+    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
+      return Response.json(
+        { ok: false, error: "An account with this email already exists. Try signing in." },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
+
+  // Send a verification email when email is configured (prod). When it isn't
+  // (local dev), skip it — the account is usable immediately.
+  let verifyEmailSent = false;
+  if (isEmailConfigured()) {
+    const token = randomBytes(32).toString("hex");
+    await prisma.verificationToken.create({
+      data: { identifier: email, token, expires: new Date(Date.now() + 1000 * 60 * 60 * 24) },
+    });
+    verifyEmailSent = await sendVerificationEmail(email, token);
+  }
+
+  return Response.json({ ok: true, verifyEmailSent });
 }
+

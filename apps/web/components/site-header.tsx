@@ -5,6 +5,7 @@ import { FREE_GENERATION_QUOTA } from "@printartz/shared";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ContactButton, HelpButton } from "@/components/info-modals";
+import { ReviewsButton } from "@/components/reviews-modal";
 import { HomeLink } from "@/components/home-link";
 import { ProfileMenu } from "@/components/profile-menu";
 
@@ -38,6 +39,7 @@ export async function SiteHeader() {
           </Link>
           <ContactButton />
           <HelpButton />
+          <ReviewsButton />
           <ThemeToggle />
           {user ? (
             <ProfileMenu

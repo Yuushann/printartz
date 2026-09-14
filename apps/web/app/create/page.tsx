@@ -12,7 +12,7 @@ export default async function CreatePage() {
   return (
     <>
     <PageBackdrop src="/bg/craft-supplies.jpg" />
-    <main className="mx-auto max-w-4xl px-6 py-12">
+    <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-3xl font-bold tracking-tight">
         Start a{" "}
         <span className="bg-gradient-to-r from-fuchsia-600 to-violet-600 bg-clip-text text-transparent">
