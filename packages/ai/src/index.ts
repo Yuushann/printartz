@@ -37,6 +37,15 @@ function requireKey(): string {
   return apiKey;
 }
 
+/**
+ * gpt-image-1 render quality. Env-tunable (no redeploy) via AI_IMAGE_QUALITY:
+ * "low" (~$0.01, crude) | "medium" (~$0.04, good — default) | "high" (~$0.17, best).
+ */
+function imageQuality(): string {
+  const q = (process.env.AI_IMAGE_QUALITY || "medium").toLowerCase();
+  return q === "low" || q === "medium" || q === "high" ? q : "medium";
+}
+
 const PLANNER_SYSTEM = `You are the planner + safety guardrail for PrintArtZ, which turns a parent's (usually long, messy) school message into ONE printable image/template for a young child's school art project.
 
 Parents paste real school WhatsApp/notice messages. These mix: (a) the printable part a child needs (an outline/template/illustration/chart), and (b) physical craft steps (attach a stick, send bows, paste googly eyes, use tape/glue) plus logistics (dates, sizes, names). YOUR JOB: EXTRACT the printable part and describe it as an image. IGNORE physical steps, materials and logistics — draw only the flat thing a parent can print at home.
@@ -137,7 +146,7 @@ export async function generateImageFromPrompt(
       model,
       prompt,
       size: opts?.size ?? "1024x1536",
-      quality: "low",
+      quality: imageQuality(),
       n: 1,
     }),
   });
@@ -171,7 +180,7 @@ export async function generateImageWithReferences(
   form.append("model", model);
   form.append("prompt", prompt);
   form.append("size", opts?.size ?? "1024x1536");
-  form.append("quality", "low");
+  form.append("quality", imageQuality());
   form.append("n", "1");
   images.slice(0, 2).forEach((img, i) => {
     const ext = img.mime.includes("png") ? "png" : img.mime.includes("webp") ? "webp" : "jpg";

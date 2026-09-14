@@ -52,6 +52,8 @@ services:
         value: gpt-4o-mini
       - key: AI_IMAGE_MODEL
         value: gpt-image-1
+      - key: AI_IMAGE_QUALITY # low (~$0.01) | medium (~$0.04) | high (~$0.17)
+        value: medium
       # --- Public app URL ---
       - key: NEXT_PUBLIC_APP_URL # e.g. https://printartz.co.in
         sync: false
