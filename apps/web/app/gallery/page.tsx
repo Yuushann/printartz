@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { SITE } from "@printartz/shared";
 import { buttonVariants } from "@/components/ui/button";
+import { PageBackdrop } from "@/components/page-backdrop";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -28,12 +29,10 @@ const STYLE_COLORS: Record<string, string> = {
 
 export default function Gallery() {
   return (
+    <>
+    <PageBackdrop src="/bg/kids-artwork.jpg" />
     <main className="mx-auto max-w-6xl px-6 py-12">
-      <Link href="/" className="text-muted-foreground text-sm hover:underline">
-        &larr; {SITE.name}
-      </Link>
-
-      <div className="mt-4 text-center">
+      <div className="text-center">
         <h1 className="text-4xl font-extrabold tracking-tight">
           See what you can{" "}
           <span className="bg-gradient-to-r from-fuchsia-600 via-violet-600 to-sky-500 bg-clip-text text-transparent">
@@ -88,5 +87,6 @@ export default function Gallery() {
         </Link>
       </div>
     </main>
+    </>
   );
 }

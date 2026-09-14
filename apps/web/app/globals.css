@@ -4,8 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
+  --header: oklch(1 0 0); /* header bar surface (distinguished by border+shadow) */
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -26,24 +28,26 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  color-scheme: dark;
+  --background: oklch(0.12 0 0); /* lifted dark sections — clear segmentation from the pure-black header */
+  --header: oklch(0 0 0); /* pure-black header so it reads as a distinct segment */
+  --foreground: oklch(1 0 0); /* pure white */
+  --card: oklch(0.2 0 0); /* lifted further so cards still read against the lighter sections */
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0.17 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(0.62 0.24 295); /* keep the vibrant violet CTA in dark */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.22 0.02 300);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.75 0 0); /* brighter for readability on black */
+  --accent: oklch(0.24 0.03 300);
+  --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.62 0.24 295);
 }
 
 @theme inline {
@@ -102,6 +106,14 @@
    frame — the main remaining source of scroll jank. */
 :root:not([data-scrolling="true"]) .animate-floaty {
   will-change: transform;
+}
+
+/* Skip painting off-screen sections during scroll — big Firefox/no-GPU win.
+   `auto` intrinsic size remembers the last rendered height so the scrollbar
+   stays stable after first paint. */
+.cv-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
 }
 
 /* Pause decorative motion while scrolling so it never competes with the scroll

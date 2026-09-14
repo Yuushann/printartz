@@ -1,22 +1,18 @@
-import Link from "next/link";
 import { auth, signIn } from "@/auth";
 import { prisma } from "@printartz/db";
-import { SITE, FREE_GENERATION_QUOTA } from "@printartz/shared";
+import { FREE_GENERATION_QUOTA } from "@printartz/shared";
 import { Button } from "@/components/ui/button";
 import { CreateForm } from "@/components/create-form";
+import { PageBackdrop } from "@/components/page-backdrop";
 
 export default async function CreatePage() {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
 
   return (
+    <>
+    <PageBackdrop src="/bg/craft-supplies.jpg" />
     <main className="mx-auto max-w-4xl px-6 py-12">
-      <div className="mb-6">
-        <Link href="/" className="text-muted-foreground text-sm hover:underline">
-          &larr; {SITE.name}
-        </Link>
-      </div>
-
       <h1 className="text-3xl font-bold tracking-tight">
         Start a{" "}
         <span className="bg-gradient-to-r from-fuchsia-600 to-violet-600 bg-clip-text text-transparent">
@@ -56,6 +52,7 @@ export default async function CreatePage() {
         )}
       </div>
     </main>
+    </>
   );
 }
 
