@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "dotenv -e ../../.env.local -- next dev --turbopack",
     "build": "next build",
-    "start": "dotenv -e ../../.env.local -- next start",
+    "start": "next start",
+    "start:local": "dotenv -e ../../.env.local -- next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

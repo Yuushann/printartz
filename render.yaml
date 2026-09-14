@@ -1,0 +1,72 @@
+# Render Blueprint for PrintArtZ — free-tier Next.js web service.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Notes:
+# - Monorepo (pnpm workspaces). Build/start run from the repo ROOT so pnpm can
+#   resolve the workspace packages; the root scripts filter to @printartz/web.
+# - `pnpm install` triggers packages/db's `postinstall: prisma generate`, which
+#   creates the engine-free Prisma client (its output dir is gitignored).
+# - Free plan spins down after ~15 min idle (~30-60s cold start on next hit).
+#   Keep it warm with an EXTERNAL pinger (e.g. UptimeRobot) hitting /api/health.
+# - Render has NO request timeout, so the synchronous /api/generate call is safe.
+# - Secrets are `sync: false` — set their values in the Render dashboard, never
+#   commit them here.
+services:
+  - type: web
+    name: printartz-web
+    runtime: node
+    plan: free
+    region: singapore # closest Render region to India users
+    branch: feature/first_build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # --- Database (Supabase) ---
+      - key: DATABASE_URL # transaction pooler :6543 (pgbouncer)
+        sync: false
+      - key: DIRECT_URL # session pooler :5432
+        sync: false
+      # --- Auth (Auth.js v5 + Google) ---
+      - key: AUTH_SECRET
+        sync: false
+      - key: NEXTAUTH_URL # set to the live URL, e.g. https://printartz.co.in
+        sync: false
+      - key: AUTH_URL # keep in sync with NEXTAUTH_URL for next-auth v5
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # --- AI (OpenAI) ---
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_TEXT_MODEL
+        value: gpt-4o-mini
+      - key: AI_IMAGE_MODEL
+        value: gpt-image-1
+      # --- Public app URL ---
+      - key: NEXT_PUBLIC_APP_URL # e.g. https://printartz.co.in
+        sync: false
+      # --- Optional / not yet wired at runtime (set when features land) ---
+      - key: REDIS_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: EMAIL_PROVIDER_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: no-reply@printartz.co.in
+      - key: SUPPORT_EMAIL
+        value: support@printartz.co.in
