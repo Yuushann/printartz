@@ -98,6 +98,13 @@
   backface-visibility: hidden;
 }
 
+/* Pause decorative motion while scrolling so it never competes with the scroll
+   on the main thread — keeps scrolling smooth even with GPU acceleration OFF
+   (set by ScrollMotionGuard). */
+:root[data-scrolling="true"] .animate-floaty {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-floaty {
     animation: none;

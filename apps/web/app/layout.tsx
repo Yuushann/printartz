@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SITE } from "@printartz/shared";
 import { SiteHeader } from "@/components/site-header";
+import { ScrollMotionGuard } from "@/components/scroll-motion-guard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
+        <ScrollMotionGuard />
         <SiteHeader />
         {children}
       </body>
