@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /** Lightweight accessible modal: backdrop click + Esc to close, body scroll lock. */
 export function Modal({
@@ -28,9 +29,9 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className={`bg-card text-card-foreground relative z-10 w-full ${size === "lg" ? "max-w-2xl" : "max-w-md"} rounded-2xl border p-6 shadow-2xl`}>
@@ -47,7 +48,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
