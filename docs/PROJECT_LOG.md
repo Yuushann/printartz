@@ -97,7 +97,7 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 
 ## 5. Session log (most recent first)
 
-### 2026-09-13/14 (sessions 4–5 — Claude Code) — live launch, product build-out, renderer V2/V3
+### 2026-09-13/14 (sessions 4–5) — live launch, product build-out, renderer V2/V3
 
 **Phase 1 finish → Waves:** Google sign-in (Auth.js v5) + colorful redesign; **OpenAI image pipeline** (`packages/ai`: `planRequest` guardrail+prompt extraction via gpt-4o-mini, `generateImageFromPrompt`/`…WithReferences` via gpt-image-1); **/api/generate** (login-gated, zod, quota, persists ProjectRequest/GenerationJob). Fixed auth `Configuration` bug (added `User.emailVerified`). Kid/parent redesign + `/gallery`. Reference-image upload (images/edits). Iterative "regenerate with a change".
 
@@ -114,7 +114,7 @@ Legend: ✅ done · 🔷 in progress · ⬜ not started · ⏸ deferred
 **Branches:** `feature/first_build` frozen (tag `first-build-live`); active work on `second_build` → merged to `develop` (Render deploys). **Remaining:** Razorpay payment flow; real V3 print testing.
 - Added **"🔧 Service setup"** tab to `docs/tutorial/` documenting every service's registration/keys/DNS/config.
 
-### 2026-09-12 (session 3 — Claude Code)
+### 2026-09-12 (session 3)
 - Resumed after long gap: **un-paused Supabase**; fixed stale pooler host (`aws-0`→`aws-1`) in `DATABASE_URL`/`DIRECT_URL`; verified DB (PG 17.6).
 - Provisioned + **verified live**: **OpenAI** (fixed image model to `gpt-image-1`; dall-e-3 not on account; $10/mo spend cap), **Upstash Redis** (`rediss://` TLS, Mumbai), **Razorpay** test keys (test order created).
 - Configured **Google OAuth** (localhost redirect, Testing mode) + generated `AUTH_SECRET`.
