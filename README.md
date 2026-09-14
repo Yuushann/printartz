@@ -109,22 +109,8 @@ Where to get each value: **docs/tutorial → 🔧 Service setup**.
 
 Hosted on **Render** (free tier, persistent Node server — no request timeout). The
 `render.yaml` Blueprint sets build/start/branch/env; secret values are set in the Render
-dashboard. Pushing to **`develop`** triggers an auto-deploy. An external UptimeRobot monitor
-pings `/api/health` to keep the free service warm.
-
-## Branches
-
-- `main` — stable.
-- `develop` — integration; **Render deploys this**.
-- `feature/first_build` — frozen first-live snapshot (tag `first-build-live`).
-- `second_build` — active work. Flow: work on `second_build` → merge to `develop` → deploy.
-
-## Roadmap
-
-- Razorpay payment flow (paid downloads).
-- Real-world print testing of the cutout renderer (V3).
-- Persist generated images to Supabase Storage (`GeneratedAsset` + buckets).
-- Optional BullMQ worker (Upstash) for long jobs.
+dashboard. Pushing to the deploy branch triggers an auto-deploy. An external UptimeRobot
+monitor pings `/api/health` to keep the free service warm.
 
 ---
 
