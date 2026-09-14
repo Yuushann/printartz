@@ -25,8 +25,8 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      - key: NODE_VERSION # pin to LTS; `engines: >=20` otherwise grabbed Node 26
-        value: "22.11.0"
+      - key: NODE_VERSION # pnpm@11.5.1 needs Node >=22.13; keep on the 22 LTS line
+        value: "22.14.0"
       - key: NODE_ENV
         value: production
       # --- Database (Supabase) ---
