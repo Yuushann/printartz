@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES, type PaperSizeId } from "@printartz/shared";
 import { renderPrintPdf, renderCutoutSheetPdf } from "@printartz/rendering";
@@ -18,7 +19,8 @@ const MAX_FEEDBACK_PROMPTS = 10; // stop auto-opening feedback after this many d
 
 type Ref = { file: File; url: string };
 
-export function CreateForm({ remaining: initialRemaining }: { remaining: number }) {
+export function CreateForm({ remaining: initialRemaining, unlimited = false }: { remaining: number; unlimited?: boolean }) {
+  const router = useRouter();
   const [instruction, setInstruction] = useState("");
   const [category, setCategory] = useState("cutout");
   const [paperSize, setPaperSize] = useState("a4");
@@ -92,6 +94,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       setSummary(data.summary ?? null);
       setRemaining(data.remaining);
       setRequestId(data.requestId ?? null);
+      router.refresh(); // update the header profile's generation count
       return true;
     } catch {
       setError("Network error — please try again.");
@@ -295,13 +298,13 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
           <Button
             type="submit"
             size="lg"
-            disabled={loading || remaining <= 0}
+            disabled={loading || (!unlimited && remaining <= 0)}
             className="bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white hover:from-fuchsia-500 hover:to-violet-500"
           >
             {loading ? "Generating… 🎨" : tileMode ? "Generate object ✨" : "Generate image ✨"}
           </Button>
           <span className="text-muted-foreground text-sm">
-            {remaining} free generation{remaining === 1 ? "" : "s"} left
+            {unlimited ? "Super User — unlimited generations ✨" : `${remaining} free generation${remaining === 1 ? "" : "s"} left`}
           </span>
         </div>
 
@@ -443,11 +446,11 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                     id="refine"
                     value={refine}
                     onChange={(e) => setRefine(e.target.value)}
-                    disabled={loading || remaining <= 0}
+                    disabled={loading || (!unlimited && remaining <= 0)}
                     placeholder="e.g. make the apples bigger, add 2 more"
                     className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   />
-                  <Button type="button" variant="outline" onClick={onRefine} disabled={loading || remaining <= 0 || refine.trim().length < 2}>
+                  <Button type="button" variant="outline" onClick={onRefine} disabled={loading || (!unlimited && remaining <= 0) || refine.trim().length < 2}>
                     Regenerate
                   </Button>
                 </div>

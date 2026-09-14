@@ -10,13 +10,21 @@ export function isEmailConfigured(): boolean {
   return !!k && k.length > 20 && !k.toLowerCase().includes("replace");
 }
 
-function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    process.env.AUTH_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+/**
+ * The public base URL for building links, derived from the ACTUAL request host
+ * (Render forwards the real host via x-forwarded-*). This avoids env-misconfig
+ * bugs where links pointed at the internal port (localhost:10000).
+ */
+export function requestBaseUrl(req: Request): string {
+  const h = req.headers;
+  const host = (h.get("x-forwarded-host") || h.get("host") || "").split(",")[0].trim();
+  if (host) {
+    const proto =
+      h.get("x-forwarded-proto")?.split(",")[0].trim() ||
+      (host.includes("localhost") || host.startsWith("127.") ? "http" : "https");
+    return `${proto}://${host}`;
+  }
+  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
@@ -37,8 +45,8 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   }
 }
 
-export async function sendVerificationEmail(to: string, token: string): Promise<boolean> {
-  const link = `${appBaseUrl()}/verify?token=${encodeURIComponent(token)}`;
+export async function sendVerificationEmail(to: string, token: string, baseUrl: string): Promise<boolean> {
+  const link = `${baseUrl.replace(/\/$/, "")}/verify?token=${encodeURIComponent(token)}`;
   const html = `
     <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h1 style="font-size:22px;margin:0 0 8px">Verify your email</h1>

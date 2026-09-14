@@ -59,11 +59,12 @@ export default async function CreatePage() {
 async function CreateFormWithQuota({ userId }: { userId: string }) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { freeGenerationsUsed: true },
+    select: { freeGenerationsUsed: true, role: true },
   });
+  const unlimited = user?.role === "LEGEND";
   const remaining = Math.max(
     0,
     FREE_GENERATION_QUOTA - (user?.freeGenerationsUsed ?? 0),
   );
-  return <CreateForm remaining={remaining} />;
+  return <CreateForm remaining={remaining} unlimited={unlimited} />;
 }

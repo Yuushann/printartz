@@ -20,6 +20,7 @@ generator client {
 enum Role {
   USER
   ADMIN
+  LEGEND // Super User — unlimited generations (set manually in DB)
 }
 
 enum ProjectStatus {

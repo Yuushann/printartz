@@ -16,12 +16,14 @@ export async function SiteHeader() {
   const userId = (user as { id?: string } | undefined)?.id;
 
   let used = 0;
+  let unlimited = false;
   if (userId) {
     const row = await prisma.user.findUnique({
       where: { id: userId },
-      select: { freeGenerationsUsed: true },
+      select: { freeGenerationsUsed: true, role: true },
     });
     used = row?.freeGenerationsUsed ?? 0;
+    unlimited = row?.role === "LEGEND";
   }
 
   return (
@@ -51,6 +53,7 @@ export async function SiteHeader() {
               image={user.image ?? null}
               used={used}
               quota={FREE_GENERATION_QUOTA}
+              unlimited={unlimited}
             />
           ) : (
             <Link href="/login">

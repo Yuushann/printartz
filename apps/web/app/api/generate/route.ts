@@ -65,9 +65,10 @@ export async function POST(req: Request) {
   // 3. Free-quota check.
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { freeGenerationsUsed: true, emailVerified: true, passwordHash: true },
+    select: { freeGenerationsUsed: true, emailVerified: true, passwordHash: true, role: true },
   });
   if (!user) return Response.json({ ok: false, error: "User not found." }, { status: 401 });
+  const unlimited = user.role === "LEGEND";
   // Email/password accounts must verify their email (only enforced once email
   // sending is configured; OAuth accounts are already verified by the provider).
   if (isEmailConfigured() && user.passwordHash && !user.emailVerified) {
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
       { status: 403 },
     );
   }
-  if (user.freeGenerationsUsed >= FREE_GENERATION_QUOTA) {
+  if (!unlimited && user.freeGenerationsUsed >= FREE_GENERATION_QUOTA) {
     return Response.json(
       { ok: false, error: "Free generation quota reached. Paid generation is coming soon.", remaining: 0 },
       { status: 402 },
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
       image: `data:image/png;base64,${image.b64}`,
       summary: plan.summary || null,
       usedReferences: refs.length,
+      unlimited,
       remaining: Math.max(0, FREE_GENERATION_QUOTA - updatedUser.freeGenerationsUsed),
     });
   } catch (e) {

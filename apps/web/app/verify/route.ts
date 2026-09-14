@@ -1,4 +1,5 @@
 import { prisma } from "@printartz/db";
+import { requestBaseUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 // then redirects to /login with a status flag.
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = requestBaseUrl(req); // public host, not the internal port
   const token = url.searchParams.get("token");
 
   if (!token) return Response.redirect(`${origin}/login?verify=invalid`);

@@ -1,7 +1,7 @@
 import { prisma } from "@printartz/db";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { isEmailConfigured, sendVerificationEmail } from "@/lib/email";
+import { isEmailConfigured, sendVerificationEmail, requestBaseUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     await prisma.verificationToken.create({
       data: { identifier: email, token, expires: new Date(Date.now() + 1000 * 60 * 60 * 24) },
     });
-    verifyEmailSent = await sendVerificationEmail(email, token);
+    verifyEmailSent = await sendVerificationEmail(email, token, requestBaseUrl(req));
   }
 
   return Response.json({ ok: true, verifyEmailSent });

@@ -12,12 +12,14 @@ export function ProfileMenu({
   image,
   used,
   quota,
+  unlimited = false,
 }: {
   name: string | null;
   email: string | null;
   image: string | null;
   used: number;
   quota: number;
+  unlimited?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [currentName, setCurrentName] = useState(name);
@@ -114,14 +116,19 @@ export function ProfileMenu({
             </div>
           </div>
 
+          {unlimited && (
+            <div className="rounded-xl border border-fuchsia-500/40 bg-gradient-to-r from-fuchsia-500/10 to-violet-500/10 px-3 py-2 text-center text-sm font-semibold">
+              ✨ Super User — unlimited generations
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-accent/50 rounded-xl border p-3 text-center">
               <p className="text-2xl font-bold">{used}</p>
               <p className="text-muted-foreground text-xs">Generated</p>
             </div>
             <div className="bg-accent/50 rounded-xl border p-3 text-center">
-              <p className="text-2xl font-bold">{remaining}</p>
-              <p className="text-muted-foreground text-xs">Free left</p>
+              <p className="text-2xl font-bold">{unlimited ? "∞" : remaining}</p>
+              <p className="text-muted-foreground text-xs">{unlimited ? "Unlimited" : "Free left"}</p>
             </div>
           </div>
 
