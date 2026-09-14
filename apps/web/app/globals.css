@@ -94,8 +94,14 @@
 }
 .animate-floaty {
   animation: floaty 7s ease-in-out infinite;
+}
+
+/* Promote to a compositor layer ONLY while actually animating (i.e. not
+   scrolling). Leaving will-change on permanently forces the software
+   compositor (Firefox / GPU-off) to re-composite these layers every scroll
+   frame — the main remaining source of scroll jank. */
+:root:not([data-scrolling="true"]) .animate-floaty {
   will-change: transform;
-  backface-visibility: hidden;
 }
 
 /* Pause decorative motion while scrolling so it never competes with the scroll

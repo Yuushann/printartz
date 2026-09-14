@@ -17,7 +17,7 @@ services:
     runtime: node
     plan: free
     region: singapore # closest Render region to India users
-    branch: feature/first_build
+    branch: develop # active release branch (second_build → develop → deploy)
     # Render provides pnpm natively (detected via packageManager + lockfile);
     # do NOT run `corepack enable` — it fails writing to the read-only /usr/bin.
     # Run `db:generate` EXPLICITLY: a cached install reports "Already up to date"
