@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES, type PaperSizeId } from "@printartz/shared";
 import { renderPrintPdf } from "@printartz/rendering";
+import { trimWhitespace } from "@/lib/trim-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [refine, setRefine] = useState("");
   const [requestId, setRequestId] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [objectWidthCm, setObjectWidthCm] = useState("");
 
   // Auto-open the feedback modal after a download, but only up to a lifetime cap
   // so we don't nag repeat users. A manual "Share feedback" button is always shown.
@@ -113,8 +115,15 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
     if (!image) return;
     setPdfBusy(true);
     try {
-      const bytes = await (await fetch(image)).arrayBuffer();
-      const pdf = await renderPrintPdf({ imageBytes: bytes, paperSizeId: paperSize as PaperSizeId });
+      // V2: trim the surrounding whitespace so the artwork places at an accurate size.
+      const trimmed = await trimWhitespace(image);
+      const widthCm = parseFloat(objectWidthCm);
+      const objectWidthMm = Number.isFinite(widthCm) && widthCm > 0 ? widthCm * 10 : undefined;
+      const pdf = await renderPrintPdf({
+        imageBytes: trimmed.bytes,
+        paperSizeId: paperSize as PaperSizeId,
+        objectWidthMm,
+      });
       const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -300,6 +309,25 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
         <CardContent>
           {image ? (
             <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="objw" className="text-sm">Exact artwork width (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="objw"
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={objectWidthCm}
+                    onChange={(e) => setObjectWidthCm(e.target.value)}
+                    placeholder="e.g. 6"
+                    className="border-input bg-background flex h-9 w-24 rounded-md border px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  />
+                  <span className="text-muted-foreground text-sm">cm wide</span>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Leave blank to fit the page. Set a width to print at an exact real-world size — we trim the surrounding whitespace so it&apos;s accurate.
+                </p>
+              </div>
               <Button
                 type="button"
                 onClick={onDownloadPdf}
