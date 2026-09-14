@@ -95,7 +95,13 @@ export async function POST(req: Request) {
 
   // 5. Persist request + job.
   const projectRequest = await prisma.projectRequest.create({
-    data: { userId, ...parsed.data, category: plan.category ?? parsed.data.category, status: "GENERATING" },
+    data: {
+      userId,
+      ...parsed.data,
+      category: plan.category ?? parsed.data.category,
+      imagePrompt: plan.imagePrompt ?? null,
+      status: "GENERATING",
+    },
   });
   const job = await prisma.generationJob.create({
     data: { projectRequestId: projectRequest.id, status: "RUNNING" },

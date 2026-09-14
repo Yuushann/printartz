@@ -50,6 +50,53 @@
   --ring: oklch(0.62 0.24 295);
 }
 
+/* Accent theme: warm / pastel (light-based). Applied as `.theme-warm` on <html>. */
+.theme-warm {
+  color-scheme: light;
+  --background: oklch(0.97 0.02 85);
+  --header: oklch(0.93 0.035 78);
+  --foreground: oklch(0.26 0.04 55);
+  --card: oklch(0.99 0.012 85);
+  --card-foreground: oklch(0.26 0.04 55);
+  --popover: oklch(0.99 0.012 85);
+  --popover-foreground: oklch(0.26 0.04 55);
+  --primary: oklch(0.64 0.19 45); /* warm orange */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.04 70);
+  --secondary-foreground: oklch(0.3 0.05 55);
+  --muted: oklch(0.93 0.025 80);
+  --muted-foreground: oklch(0.5 0.03 60);
+  --accent: oklch(0.9 0.06 60);
+  --accent-foreground: oklch(0.3 0.05 55);
+  --border: oklch(0.86 0.03 70);
+  --input: oklch(0.86 0.03 70);
+  --ring: oklch(0.64 0.19 45);
+}
+
+/* Accent theme: high-contrast (dark-based). Applied together with `.dark`,
+   i.e. `<html class="dark theme-contrast">`; defined after `.dark` so it wins. */
+.theme-contrast {
+  color-scheme: dark;
+  --background: oklch(0 0 0);
+  --header: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --card: oklch(0.14 0 0);
+  --card-foreground: oklch(1 0 0);
+  --popover: oklch(0.14 0 0);
+  --popover-foreground: oklch(1 0 0);
+  --primary: oklch(0.86 0.19 95); /* bright yellow */
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.2 0 0);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.92 0 0); /* very bright for contrast */
+  --accent: oklch(0.26 0 0);
+  --accent-foreground: oklch(1 0 0);
+  --border: oklch(1 0 0 / 45%); /* strong borders for segmentation */
+  --input: oklch(1 0 0 / 45%);
+  --ring: oklch(0.86 0.19 95);
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

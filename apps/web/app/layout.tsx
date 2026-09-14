@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 // Runs before paint: applies the saved theme (default = dark) so there's no
 // flash of the wrong theme on load.
-const themeInit = `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){}})();`;
+const themeInit = `(function(){try{var t=localStorage.getItem('theme')||'dark';var el=document.documentElement;el.classList.remove('dark','theme-warm','theme-contrast');if(t==='dark'){el.classList.add('dark');}else if(t==='warm'){el.classList.add('theme-warm');}else if(t==='contrast'){el.classList.add('dark','theme-contrast');}}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({
   children,

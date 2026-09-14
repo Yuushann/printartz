@@ -63,6 +63,7 @@ model User {
   emailVerified       DateTime? // required by the Auth.js/NextAuth adapter
   name                String?
   image               String?
+  passwordHash        String? // set only for email+password signups (null for OAuth)
   role                Role     @default(USER)
   freeGenerationsUsed Int      @default(0)
   createdAt           DateTime @default(now())
@@ -74,6 +75,7 @@ model User {
   paymentOrders   PaymentOrder[]
   downloads       Download[]
   auditLogs       AuditLog[]
+  feedbacks       Feedback[]
 }
 
 model Account {
@@ -117,6 +119,7 @@ model ProjectRequest {
   id          String        @id @default(cuid())
   userId      String
   instruction String
+  imagePrompt String? // the clean visual-only prompt the planner produced (for future training)
   category    String
   paperSize   String
   style       String?
@@ -125,11 +128,29 @@ model ProjectRequest {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  jobs GenerationJob[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs      GenerationJob[]
+  feedbacks Feedback[]
 
   @@index([userId])
   @@index([status])
+}
+
+// Star rating + optional written feedback, captured after a user downloads a
+// result. Stored per user (and linked to the request when available).
+model Feedback {
+  id               String   @id @default(cuid())
+  userId           String
+  projectRequestId String?
+  rating           Int // 1-5 stars
+  comment          String?
+  createdAt        DateTime @default(now())
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectRequest ProjectRequest? @relation(fields: [projectRequestId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectRequestId])
 }
 
 model GenerationJob {

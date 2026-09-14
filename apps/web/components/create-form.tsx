@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { FeedbackForm } from "@/components/feedback-form";
 
 const MAX_FILES = 2;
 
@@ -28,6 +29,8 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [summary, setSummary] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(initialRemaining);
   const [refine, setRefine] = useState("");
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(false);
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -67,6 +70,8 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       setImage(data.image);
       setSummary(data.summary ?? null);
       setRemaining(data.remaining);
+      setRequestId(data.requestId ?? null);
+      setDownloaded(false);
       return true;
     } catch {
       setError("Network error — please try again.");
@@ -102,6 +107,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       a.download = `printartz-${paperSize}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
+      setDownloaded(true);
     } finally {
       setPdfBusy(false);
     }
@@ -269,7 +275,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 >
                   {pdfBusy ? "Preparing…" : `Download print-ready PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
                 </Button>
-                <a href={image} download="printartz.png" className="text-muted-foreground text-sm hover:underline">
+                <a href={image} download="printartz.png" onClick={() => setDownloaded(true)} className="text-muted-foreground text-sm hover:underline">
                   or PNG preview
                 </a>
               </div>
@@ -302,6 +308,9 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
                 Prototype preview — final print-accurate PDF export, watermarking and paid
                 download come in later phases.
               </p>
+
+              {/* Feedback appears only after the user has downloaded a result. */}
+              {downloaded && <FeedbackForm projectRequestId={requestId} />}
             </div>
           )}
           {!loading && !image && (
