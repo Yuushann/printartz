@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { PROJECT_CATEGORIES, PAPER_SIZES, STYLES, type PaperSizeId } from "@printartz/shared";
-import { renderPrintPdf } from "@printartz/rendering";
+import { renderPrintPdf, renderCutoutSheetPdf } from "@printartz/rendering";
 import { trimWhitespace } from "@/lib/trim-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,8 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
   const [requestId, setRequestId] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [objectWidthCm, setObjectWidthCm] = useState("");
+  const [tileMode, setTileMode] = useState(false);
+  const [tileCount, setTileCount] = useState("6");
 
   // Auto-open the feedback modal after a download, but only up to a lifetime cap
   // so we don't nag repeat users. A manual "Share feedback" button is always shown.
@@ -76,6 +78,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       fd.set("paperSize", paperSize);
       if (style) fd.set("style", style);
       if (paperColor) fd.set("paperColor", paperColor);
+      fd.set("single", tileMode ? "true" : "false");
       referenceFiles.slice(0, MAX_FILES).forEach((f) => fd.append("images", f));
 
       const res = await fetch("/api/generate", { method: "POST", body: fd });
@@ -129,6 +132,34 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
       const a = document.createElement("a");
       a.href = url;
       a.download = `printartz-${paperSize}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      maybePromptFeedback();
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
+  // V3: compose a cutout sheet — tile N copies of the (trimmed) object at an exact size.
+  async function onDownloadSheet() {
+    if (!image) return;
+    setPdfBusy(true);
+    try {
+      const trimmed = await trimWhitespace(image);
+      const widthCm = parseFloat(objectWidthCm);
+      const objectWidthMm = Number.isFinite(widthCm) && widthCm > 0 ? widthCm * 10 : 60;
+      const count = Math.max(1, Math.min(200, parseInt(tileCount, 10) || 6));
+      const pdf = await renderCutoutSheetPdf({
+        imageBytes: trimmed.bytes,
+        paperSizeId: paperSize as PaperSizeId,
+        count,
+        objectWidthMm,
+      });
+      const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `printartz-cutouts-${paperSize}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       maybePromptFeedback();
@@ -248,6 +279,18 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
           </div>
         </div>
 
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg border bg-black/[0.02] p-3 text-sm dark:bg-white/[0.03]">
+          <input
+            type="checkbox"
+            checked={tileMode}
+            onChange={(e) => setTileMode(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-fuchsia-600"
+          />
+          <span>
+            <span className="font-medium">Make a cutout sheet</span> — we&apos;ll draw one clean object and tile identical copies at an exact size (best for cutouts).
+          </span>
+        </label>
+
         <div className="flex items-center gap-4">
           <Button
             type="submit"
@@ -255,7 +298,7 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
             disabled={loading || remaining <= 0}
             className="bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white hover:from-fuchsia-500 hover:to-violet-500"
           >
-            {loading ? "Generating… 🎨" : "Generate image ✨"}
+            {loading ? "Generating… 🎨" : tileMode ? "Generate object ✨" : "Generate image ✨"}
           </Button>
           <span className="text-muted-foreground text-sm">
             {remaining} free generation{remaining === 1 ? "" : "s"} left
@@ -309,41 +352,88 @@ export function CreateForm({ remaining: initialRemaining }: { remaining: number 
         <CardContent>
           {image ? (
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="objw" className="text-sm">Exact artwork width (optional)</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="objw"
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    value={objectWidthCm}
-                    onChange={(e) => setObjectWidthCm(e.target.value)}
-                    placeholder="e.g. 6"
-                    className="border-input bg-background flex h-9 w-24 rounded-md border px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  />
-                  <span className="text-muted-foreground text-sm">cm wide</span>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  Leave blank to fit the page. Set a width to print at an exact real-world size — we trim the surrounding whitespace so it&apos;s accurate.
-                </p>
-              </div>
-              <Button
-                type="button"
-                onClick={onDownloadPdf}
-                disabled={pdfBusy}
-                className="w-full bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
-              >
-                {pdfBusy ? "Preparing…" : `Download PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
-              </Button>
-              <div className="text-center">
-                <a href={image} download="printartz.png" onClick={maybePromptFeedback} className="text-muted-foreground text-sm hover:underline">
-                  or download PNG preview
-                </a>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                The PDF page is exactly {PAPER_SIZES[paperSize as PaperSizeId].widthMm}×{PAPER_SIZES[paperSize as PaperSizeId].heightMm} mm. Print at 100% / actual size and check the 100 mm ruler.
-              </p>
+              {tileMode ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Cutout sheet</Label>
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <input
+                        type="number"
+                        min="1"
+                        max="200"
+                        value={tileCount}
+                        onChange={(e) => setTileCount(e.target.value)}
+                        className="border-input bg-background h-9 w-20 rounded-md border px-3 py-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                      <span className="text-muted-foreground">copies,</span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.5"
+                        value={objectWidthCm}
+                        onChange={(e) => setObjectWidthCm(e.target.value)}
+                        placeholder="6"
+                        className="border-input bg-background h-9 w-20 rounded-md border px-3 py-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                      <span className="text-muted-foreground">cm each</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Tiles identical copies at the exact size across {PAPER_SIZES[paperSize as PaperSizeId].label} pages (adds pages if needed), each with a cut border.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={onDownloadSheet}
+                    disabled={pdfBusy}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
+                  >
+                    {pdfBusy ? "Preparing…" : "Download cutout sheet PDF ↓"}
+                  </Button>
+                  <div className="text-center">
+                    <a href={image} download="printartz.png" onClick={maybePromptFeedback} className="text-muted-foreground text-sm hover:underline">
+                      or download single PNG
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="objw" className="text-sm">Exact artwork width (optional)</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="objw"
+                        type="number"
+                        min="1"
+                        step="0.5"
+                        value={objectWidthCm}
+                        onChange={(e) => setObjectWidthCm(e.target.value)}
+                        placeholder="e.g. 6"
+                        className="border-input bg-background flex h-9 w-24 rounded-md border px-3 py-1 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                      <span className="text-muted-foreground text-sm">cm wide</span>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Leave blank to fit the page. Set a width to print at an exact real-world size — we trim the surrounding whitespace so it&apos;s accurate.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={onDownloadPdf}
+                    disabled={pdfBusy}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-sky-600 text-white hover:from-emerald-500 hover:to-sky-500"
+                  >
+                    {pdfBusy ? "Preparing…" : `Download PDF (${PAPER_SIZES[paperSize as PaperSizeId].label}) ↓`}
+                  </Button>
+                  <div className="text-center">
+                    <a href={image} download="printartz.png" onClick={maybePromptFeedback} className="text-muted-foreground text-sm hover:underline">
+                      or download PNG preview
+                    </a>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    The PDF page is exactly {PAPER_SIZES[paperSize as PaperSizeId].widthMm}×{PAPER_SIZES[paperSize as PaperSizeId].heightMm} mm. Print at 100% / actual size and check the 100 mm ruler.
+                  </p>
+                </>
+              )}
 
               {/* Refine loop */}
               <div className="rounded-lg border bg-black/[0.02] p-3 dark:bg-white/[0.03]">

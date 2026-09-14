@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     style: form.get("style") ? String(form.get("style")) : undefined,
     paperColor: form.get("paperColor") ? String(form.get("paperColor")) : undefined,
   };
+  const single = String(form.get("single") ?? "") === "true";
   const parsed = projectRequestSchema.safeParse(fields);
   if (!parsed.success) {
     return Response.json(
@@ -120,8 +121,8 @@ export async function POST(req: Request) {
   try {
     const image =
       refs.length > 0
-        ? await generateImageWithReferences(plan.imagePrompt, refs, { textContent: plan.textContent || undefined })
-        : await generateImageFromPrompt(plan.imagePrompt, { textContent: plan.textContent || undefined });
+        ? await generateImageWithReferences(plan.imagePrompt, refs, { textContent: plan.textContent || undefined, single })
+        : await generateImageFromPrompt(plan.imagePrompt, { textContent: plan.textContent || undefined, single });
 
     const updatedUser = await prisma.$transaction(async (tx) => {
       await tx.generationJob.update({ where: { id: job.id }, data: { status: "SUCCEEDED" } });

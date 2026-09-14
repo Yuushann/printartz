@@ -123,21 +123,24 @@ export async function planRequest(input: ProjectRequestInput): Promise<RequestPl
 }
 
 /** Final safety wrapper appended to every image prompt. */
-function hardenImagePrompt(imagePrompt: string, textContent?: string): string {
+function hardenImagePrompt(imagePrompt: string, textContent?: string, single?: boolean): string {
   const noText = textContent
     ? `The ONLY text allowed in the image is exactly: "${textContent}" — spelled exactly, nothing else.`
     : "Absolutely no text, letters, words, numbers, captions or writing anywhere in the image.";
-  return `${imagePrompt}\n\nStyle requirements: clean flat printable illustration, bold dark outlines, plain solid white background, centered with margins. ${noText} No watermark, no signature, no borders unless described.`;
+  const singleClause = single
+    ? " Draw ONE single isolated object only — a single item, NOT a set, group, grid or multiple copies — centered on a plain solid white background, die-cut sticker style with clear bold outlines for cutting."
+    : "";
+  return `${imagePrompt}\n\nStyle requirements: clean flat printable illustration, bold dark outlines, plain solid white background, centered with margins.${singleClause} ${noText} No watermark, no signature, no borders unless described.`;
 }
 
 /** Generate one image from an already-planned, clean prompt. */
 export async function generateImageFromPrompt(
   imagePrompt: string,
-  opts?: { textContent?: string; size?: string },
+  opts?: { textContent?: string; size?: string; single?: boolean },
 ): Promise<GeneratedImage> {
   const apiKey = requireKey();
   const model = process.env.AI_IMAGE_MODEL || "gpt-image-1";
-  const prompt = hardenImagePrompt(imagePrompt, opts?.textContent);
+  const prompt = hardenImagePrompt(imagePrompt, opts?.textContent, opts?.single);
 
   const res = await fetch(OPENAI_IMAGES_URL, {
     method: "POST",
@@ -168,13 +171,13 @@ export async function generateImageFromPrompt(
 export async function generateImageWithReferences(
   imagePrompt: string,
   images: ReferenceImage[],
-  opts?: { textContent?: string; size?: string },
+  opts?: { textContent?: string; size?: string; single?: boolean },
 ): Promise<GeneratedImage> {
   const apiKey = requireKey();
   const model = process.env.AI_IMAGE_MODEL || "gpt-image-1";
   const prompt =
     "Using the uploaded reference image(s) as a guide for the subject, layout and proportions, produce a clean printable version. " +
-    hardenImagePrompt(imagePrompt, opts?.textContent);
+    hardenImagePrompt(imagePrompt, opts?.textContent, opts?.single);
 
   const form = new FormData();
   form.append("model", model);
