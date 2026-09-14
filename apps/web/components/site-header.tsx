@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ContactButton, HelpButton } from "@/components/info-modals";
 import { ReviewsButton } from "@/components/reviews-modal";
+import { NavMenu } from "@/components/nav-menu";
 import { HomeLink } from "@/components/home-link";
 import { ProfileMenu } from "@/components/profile-menu";
 
@@ -31,15 +32,17 @@ export async function SiteHeader() {
           <HomeLink />
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/gallery"
-            className="text-muted-foreground hidden text-sm font-medium hover:text-foreground sm:inline"
-          >
-            Examples
-          </Link>
-          <ContactButton />
-          <HelpButton />
-          <ReviewsButton />
+          <NavMenu>
+            <Link
+              href="/gallery"
+              className="text-muted-foreground text-sm font-medium hover:text-foreground"
+            >
+              Examples
+            </Link>
+            <ContactButton />
+            <HelpButton />
+            <ReviewsButton />
+          </NavMenu>
           <ThemeToggle />
           {user ? (
             <ProfileMenu
